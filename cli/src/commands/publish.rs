@@ -128,3 +128,4 @@ pub async fn run(args: PublishArgs) -> Result<()> {
     );
     Ok(())
 }
+

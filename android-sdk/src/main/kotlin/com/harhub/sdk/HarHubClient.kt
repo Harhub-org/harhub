@@ -1,14 +1,14 @@
-package com.harhub.sdk
+package com.hastagaming.harhub.sdk
 
-import com.harhub.sdk.api.HarhubApi
-import com.harhub.sdk.model.AssetPlatform
-import com.harhub.sdk.model.HarhubApp
-import com.harhub.sdk.model.HarhubAsset
-import com.harhub.sdk.model.HarhubRelease
+import com.hastagaming.harhub.sdk.api.HarhubApi
+import com.hastagaming.harhub.sdk.model.AssetPlatform
+import com.hastagaming.harhub.sdk.model.HarhubApp
+import com.hastagaming.harhub.sdk.model.HarhubAsset
+import com.hastagaming.harhub.sdk.model.HarhubRelease
 import io.github.jantennert.supabase.createSupabaseClient
-import io.github.jantennert.supabase.gotrue.GoTrue
-import io.github.jantennert.supabase.gotrue.auth
-import io.github.jantennert.supabase.gotrue.providers.builtin.Email
+import io.github.jantennert.supabase.auth.Auth
+import io.github.jantennert.supabase.auth.auth
+import io.github.jantennert.supabase.auth.providers.builtin.Email
 import io.github.jantennert.supabase.postgrest.Postgrest
 import io.github.jantennert.supabase.storage.Storage
 import kotlinx.coroutines.Dispatchers
@@ -16,13 +16,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
+import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinxserialization.asConverterFactory
-
-val harhub = HarhubClient(
-   supabaseUrl = "https://hbhqlqogcbwuoizinbtj.supabase.co",
-   supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiaHFscW9nY2J3dW9pemluYnRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NDA3NjcsImV4cCI6MjEwMDExNjc2N30.kjSZXUOPfFO1kqrfr2FluK-8yWuhhvj541s23f1sAaY",
-)
 
 class HarhubClient(
     private val supabaseUrl: String,
@@ -35,7 +31,7 @@ class HarhubClient(
         supabaseKey = supabaseAnonKey,
     ) {
         install(Postgrest)
-        install(GoTrue)
+        install(Auth)
         install(Storage)
     }
 
@@ -58,10 +54,6 @@ class HarhubClient(
         .build()
         .create(HarhubApi::class.java)
 
-    // ------------------------------------------------------------
-    // Auth
-    // ------------------------------------------------------------
-
     suspend fun signIn(email: String, password: String) = withContext(Dispatchers.IO) {
         supabase.auth.signInWith(Email) {
             this.email = email
@@ -70,10 +62,6 @@ class HarhubClient(
     }
 
     fun currentUserId(): String? = supabase.auth.currentUserOrNull()?.id
-
-    // ------------------------------------------------------------
-    // Browse / Search
-    // ------------------------------------------------------------
 
     suspend fun searchApps(query: String? = null, page: Int = 0, pageSize: Int = 20): List<HarhubApp> =
         withContext(Dispatchers.IO) {
@@ -103,18 +91,6 @@ class HarhubClient(
     suspend fun getAssetsForPlatform(releaseId: String, platform: AssetPlatform): List<HarhubAsset> =
         getAssets(releaseId).filter { it.platform == platform }
 
-    // ------------------------------------------------------------
-    // Download resolution
-    // ------------------------------------------------------------
-
-    /**
-     * Returns the URL the app should actually download from.
-     *
-     * - Public apps: [HarhubAsset.publicUrl] is already a direct, stable URL
-     *   (GitHub Release asset) — used as-is.
-     * - Proprietary apps: routes through the sign-download Edge Function,
-     *   which issues a short-lived Signed URL. Do NOT cache this URL.
-     */
     fun resolveDownloadUrl(app: HarhubApp, asset: HarhubAsset): String {
         return asset.publicUrl
             ?: "$supabaseUrl/functions/v1/sign-download?app=${app.slug}&file=${asset.fileName}"
