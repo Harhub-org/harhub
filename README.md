@@ -8,11 +8,13 @@ Harhub automates binaries, metadata, README rendering, and the app registry arou
 </div>
 
 add yours file link to the branch:
+
 Android
 
 <details>
 <summary>Android Apk</summary>
 for examples:
+
 - ![Exmaple Apk](https://raw.githubusercontent.com/username/repo/proprietary/app.apk)
 
 ---
