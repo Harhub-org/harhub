@@ -1,0 +1,24 @@
+name: Harhub Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Publish via Harhub
+        uses: hastagaming/harhub/action@v1
+        with:
+          visibility: public
+          # for proprietary apps, add:
+          # visibility: proprietary
+          # supabase-url: ${{ secrets.SUPABASE_URL }}
+          # supabase-service-key: ${{ secrets.SUPABASE_SERVICE_KEY }}

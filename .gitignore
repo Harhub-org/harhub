@@ -1,0 +1,29 @@
+# Rust
+target/
+Cargo.lock
+!cli/Cargo.lock
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Android/Gradle
+.gradle/
+build/
+*.apk
+!examples/**/*.apk
+
+# Supabase
+.env
+.env.local
+supabase/.branches
+supabase/.temp
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store

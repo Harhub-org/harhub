@@ -1,0 +1,90 @@
+name: "Harhub"
+description: "Turn your GitHub repo into a professional app download page — auto-scans binaries, generates metadata, updates README, and optionally syncs to Supabase for proprietary apps."
+author: "hastagaming"
+
+branding:
+  icon: "download-cloud"
+  color: "purple"
+
+inputs:
+  visibility:
+    description: "public or proprietary"
+    required: false
+    default: "public"
+  readme-path:
+    description: "Path to README.md to update"
+    required: false
+    default: "README.md"
+  metadata-path:
+    description: "Path to write metadata.json"
+    required: false
+    default: "metadata.json"
+  scan-root:
+    description: "Root directory to scan for binaries"
+    required: false
+    default: "."
+  version:
+    description: "Version/tag for this release (defaults to the pushed git tag, falls back to short SHA)"
+    required: false
+    default: ""
+  github-token:
+    description: "Token used to read/write GitHub Releases and commit README/metadata changes"
+    required: false
+    default: ${{ github.token }}
+  supabase-url:
+    description: "Supabase project URL (required when visibility=proprietary)"
+    required: false
+    default: ""
+  supabase-service-key:
+    description: "Supabase service_role key (required when visibility=proprietary)"
+    required: false
+    default: ""
+  commit-changes:
+    description: "Whether to commit README/metadata changes back to the repo"
+    required: false
+    default: "true"
+  storage-mode:
+    description: "How to store public binaries: 'releases' (GitHub Release assets) or 'branch' (dedicated branch, linked via raw.githubusercontent.com)"
+    required: false
+    default: "releases"
+  branch-name:
+    description: "Branch name used when storage-mode=branch"
+    required: false
+    default: "harhub-downloads"
+
+outputs:
+  version:
+    description: "The version that was processed"
+    value: ${{ steps.publish.outputs.version }}
+  asset-count:
+    description: "Number of binary assets detected"
+    value: ${{ steps.publish.outputs.asset_count }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      shell: bash
+      run: pip install --quiet -r ${{ github.action_path }}/requirements.txt
+
+    - name: Run Harhub publish
+      id: publish
+      shell: bash
+      env:
+        HARHUB_VISIBILITY: ${{ inputs.visibility }}
+        HARHUB_README_PATH: ${{ inputs.readme-path }}
+        HARHUB_METADATA_PATH: ${{ inputs.metadata-path }}
+        HARHUB_SCAN_ROOT: ${{ inputs.scan-root }}
+        HARHUB_VERSION: ${{ inputs.version }}
+        HARHUB_COMMIT_CHANGES: ${{ inputs.commit-changes }}
+        HARHUB_STORAGE_MODE: ${{ inputs.storage-mode }}
+        HARHUB_BRANCH_NAME: ${{ inputs.branch-name }}
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        SUPABASE_URL: ${{ inputs.supabase-url }}
+        SUPABASE_SERVICE_KEY: ${{ inputs.supabase-service-key }}
+      run: python ${{ github.action_path }}/scripts/publish_release.py
