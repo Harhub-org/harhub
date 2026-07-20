@@ -4,6 +4,7 @@ import com.harhub.sdk.api.HarhubApi
 import com.harhub.sdk.model.AssetPlatform
 import com.harhub.sdk.model.HarhubApp
 import com.harhub.sdk.model.HarhubAsset
+import com.harhub.sdk.model.HarhubRelease
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
