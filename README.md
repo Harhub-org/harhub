@@ -12,10 +12,23 @@ add yours file link to the branch:
 Android
 
 <details>
-<summary>Android Apk</summary>
+<summary>Android</summary>
 for examples:
 
-- [Exmaple Apk](https://raw.githubusercontent.com/username/repo/proprietary/app.apk)
+<details>
+<summary>Example Apk</summary>
+link:
+
+[example apk](https://raw.githubusercontent.com/username/repo/proprietary/app.apk)
+
+description:
+
+just for example
+
+Image:
+
+optional btw
+</details>
 
 ---
 
