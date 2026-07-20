@@ -15,7 +15,7 @@ Android
 <summary>Android Apk</summary>
 for examples:
 
-- ![Exmaple Apk](https://raw.githubusercontent.com/username/repo/proprietary/app.apk)
+- [Exmaple Apk](https://raw.githubusercontent.com/username/repo/proprietary/app.apk)
 
 ---
 
