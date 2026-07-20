@@ -19,7 +19,12 @@ pub struct PublishArgs {
     pub visibility: String,
 }
 
-async fn request_upload_url(api: &ApiClient, token: &str, app_slug: &str, file_name: &str) -> Result<crate::api::UploadUrlResponse> {
+async fn request_upload_url(
+    api: &ApiClient,
+    token: &str,
+    app_slug: &str,
+    file_name: &str,
+) -> Result<crate::api::UploadUrlResponse> {
     api.create_upload_url(token, app_slug, file_name).await
 }
 
@@ -72,7 +77,7 @@ pub async fn run(args: PublishArgs) -> Result<()> {
             .send()
             .await?;
         if !put_resp.status().is_success() {
-             bail!("upload failed: {}", put_resp.status());
+            bail!("upload failed: {}", put_resp.status());
         }
 
         PublishAssetInput {
@@ -110,6 +115,11 @@ pub async fn run(args: PublishArgs) -> Result<()> {
         bail!("publish failed: {}", resp.text().await?);
     }
 
-    println!("{} published {} {}", "✓".green(), file_name, "successfully".dimmed());
+    println!(
+        "{} published {} {}",
+        "✓".green(),
+        file_name,
+        "successfully".dimmed()
+    );
     Ok(())
 }

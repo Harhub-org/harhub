@@ -33,7 +33,11 @@ pub async fn run(slug: String) -> Result<()> {
         Some(a) => a,
         None => bail!(
             "no compatible asset found for this platform among: {}",
-            assets.iter().map(|a| a.platform.clone()).collect::<Vec<_>>().join(", ")
+            assets
+                .iter()
+                .map(|a| a.platform.clone())
+                .collect::<Vec<_>>()
+                .join(", ")
         ),
     };
 

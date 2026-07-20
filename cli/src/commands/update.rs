@@ -20,6 +20,9 @@ pub async fn run(slug: Option<String>) -> Result<()> {
         "{} Run `harhub update <app>` for a specific app, or `harhub install <app>` to reinstall.",
         "i".blue()
     );
-    println!("Currently downloaded files are tracked in: {}", dir.display());
+    println!(
+        "Currently downloaded files are tracked in: {}",
+        dir.display()
+    );
     Ok(())
 }

@@ -18,8 +18,6 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
 
-const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60_000).toISOString();
-
 const { count } = await supabase
   .from("rate_limit_log")
   .select("*", { count: "exact", head: true })
@@ -105,9 +103,18 @@ Deno.serve(async (req) => {
   }
 
   // 4. Generate a short-lived Signed URL.
+  const forwardedFor = req.headers.get("x-forwarded-for") ?? "unknown";
+  const ipHash = await hashIp(forwardedFor);
+  const windowStart = new Date(Date.now() - RATE_LIMIT_WINDOW_MINUTES * 60_000).toISOString();
   const { data: signed, error: signError } = await supabase.storage
     .from(asset.storage_bucket)
     .createSignedUrl(asset.storage_path, SIGNED_URL_TTL_SECONDS);
+
+  if ((count ?? 0) >= RATE_LIMIT_MAX) {
+    return jsonError("Too many download requests for this file — please wait a few minutes.", 429);
+  }
+
+  await supabase.from("rate_limit_log").insert({ ip_hash: ipHash, asset_id: asset.id });
 
   if (signError || !signed) {
     return jsonError("Failed to generate signed URL", 500);
@@ -118,9 +125,6 @@ Deno.serve(async (req) => {
   }
 
   // 5. Log the download (best-effort — never block the redirect on this).
-  const forwardedFor = req.headers.get("x-forwarded-for") ?? "unknown";
-  const ipHash = await hashIp(forwardedFor);
-
   const authHeader = req.headers.get("Authorization");
   let userId: string | null = null;
   if (authHeader) {

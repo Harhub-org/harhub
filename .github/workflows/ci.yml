@@ -38,7 +38,8 @@ jobs:
           pip install --quiet -r action/requirements.txt
           pip install --quiet -r action/scripts/requirements.txt
       - name: Lint (ruff)
-        run: ruff check action/scripts scripts
+        run: ruff check action/scripts scripts --exclude "*.toml,*.txt"
+
       - name: Type check (mypy)
         run: mypy --ignore-missing-imports action/scripts scripts
         continue-on-error: true  # non-blocking until fully typed

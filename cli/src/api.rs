@@ -30,7 +30,12 @@ pub struct UploadUrlResponse {
 }
 
 impl ApiClient {
-    pub async fn create_upload_url(&self, token: &str, app_slug: &str, file_name: &str) -> Result<UploadUrlResponse> {
+    pub async fn create_upload_url(
+        &self,
+        token: &str,
+        app_slug: &str,
+        file_name: &str,
+    ) -> Result<UploadUrlResponse> {
         let url = self.functions_url("create-upload-url", "");
         let resp = reqwest::Client::new()
             .post(url)
@@ -153,10 +158,12 @@ impl ApiClient {
     /// Resolves the actual download URL for an asset — direct for public
     /// apps, or the sign-download endpoint for proprietary ones.
     pub fn resolve_download_url(&self, app_slug: &str, asset: &Asset) -> String {
-        asset
-            .public_url
-            .clone()
-            .unwrap_or_else(|| self.functions_url("sign-download", &format!("app={}&file={}", app_slug, asset.file_name)))
+        asset.public_url.clone().unwrap_or_else(|| {
+            self.functions_url(
+                "sign-download",
+                &format!("app={}&file={}", app_slug, asset.file_name),
+            )
+        })
     }
 
     pub async fn sign_in(&self, email: &str, password: &str) -> Result<LoginResponse> {

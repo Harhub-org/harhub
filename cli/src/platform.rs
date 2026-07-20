@@ -45,8 +45,11 @@ impl AssetKind {
     pub fn is_installable(&self) -> bool {
         matches!(
             self,
-            AssetKind::Linux | AssetKind::AppImage | AssetKind::Deb
-                | AssetKind::Rpm | AssetKind::Jar
+            AssetKind::Linux
+                | AssetKind::AppImage
+                | AssetKind::Deb
+                | AssetKind::Rpm
+                | AssetKind::Jar
         )
     }
 

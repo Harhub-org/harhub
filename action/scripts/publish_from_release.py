@@ -86,9 +86,9 @@ def main() -> None:
             f"No developer profile found for GitHub user '{owner}'. "
             f"Register a developer profile before publishing this repo."
         )
-    if not developer.get("verified"):
-        print(f"[warn] {owner}/{repo}: developer not verified — publishing as draft")
     app_status = "published" if developer.get("verified") else "draft"
+    if app_status == "draft":
+        print(f"[warn] {owner}/{repo}: developer not verified — publishing as draft")
 
     release = fetch_latest_release(owner, repo, token)
     version = release["tag_name"]
@@ -132,7 +132,7 @@ def main() -> None:
             "repo_name": repo,
             "repo_url": f"https://github.com/{owner}/{repo}",
             "visibility": visibility,
-            "status": "published",
+            "status": app_status,
         },
         conflict="repo_owner,repo_name",
     )

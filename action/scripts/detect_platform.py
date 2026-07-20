@@ -1,7 +1,3 @@
-"""Detect platform and architecture for a binary file, based on extension
-and filename tokens.
-"""
-
 from pathlib import Path
 
 from utils.platform_map import (

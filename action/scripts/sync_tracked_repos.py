@@ -114,9 +114,9 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
         print(f"[skip] {owner}/{repo}: no developer profile for '{owner}' yet — register first")
         return
 
-    if not developer.get("verified"):
-        print(f"[warn] {owner}/{repo}: developer not verified — publishing as draft")
     app_status = "published" if developer.get("verified") else "draft"
+    if app_status == "draft":
+        print(f"[warn] {owner}/{repo}: developer not verified — publishing as draft")
 
     app_row = db.upsert(
         "apps",
@@ -128,7 +128,7 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
             "repo_name": repo,
             "repo_url": f"https://github.com/{owner}/{repo}",
             "visibility": visibility,
-            "status": "published",
+            "status": app_status,
         },
         conflict="repo_owner,repo_name",
     )

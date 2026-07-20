@@ -1,9 +1,3 @@
-"""Upload proprietary binaries to Supabase Storage (private-apps bucket)
-and record app/release/asset metadata via PostgREST, using the service_role
-key. This script is only invoked when visibility == 'proprietary'.
-"""
-
-import os
 from pathlib import Path
 
 import requests
@@ -48,7 +42,7 @@ class SupabaseClient:
             headers={
                 **self.headers,
                 "Content-Type": "application/json",
-                "Prefer": f"resolution=merge-duplicates,return=representation",
+                "Prefer": "resolution=merge-duplicates,return=representation",
             },
             params={"on_conflict": conflict_columns},
             json=row,

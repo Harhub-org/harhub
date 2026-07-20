@@ -7,7 +7,11 @@ mod download;
 mod platform;
 
 #[derive(Parser)]
-#[command(name = "harhub", version, about = "Harhub — the app download registry for your GitHub repos")]
+#[command(
+    name = "harhub",
+    version,
+    about = "Harhub — the app download registry for your GitHub repos"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -62,10 +66,26 @@ async fn main() -> anyhow::Result<()> {
         Commands::Remove { file_name } => commands::remove::run(file_name).await,
         Commands::Login => commands::login::run().await,
         Commands::Publish {
-            file, repo_owner, repo_name, app_slug, app_name, version, platform, arch, visibility,
+            file,
+            repo_owner,
+            repo_name,
+            app_slug,
+            app_name,
+            version,
+            platform,
+            arch,
+            visibility,
         } => {
             commands::publish::run(commands::publish::PublishArgs {
-                file, repo_owner, repo_name, app_slug, app_name, version, platform, arch, visibility,
+                file,
+                repo_owner,
+                repo_name,
+                app_slug,
+                app_name,
+                version,
+                platform,
+                arch,
+                visibility,
             })
             .await
         }

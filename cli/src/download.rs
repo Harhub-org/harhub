@@ -85,8 +85,15 @@ pub fn install_binary(path: &Path, kind: AssetKind) -> Result<()> {
             println!("  {} marked executable: {}", "✓".green(), path.display());
         }
         AssetKind::Deb => {
-            println!("  {} installing via dpkg (may prompt for sudo)...", "→".cyan());
-            let status = Command::new("sudo").arg("dpkg").arg("-i").arg(path).status();
+            println!(
+                "  {} installing via dpkg (may prompt for sudo)...",
+                "→".cyan()
+            );
+            let status = Command::new("sudo")
+                .arg("dpkg")
+                .arg("-i")
+                .arg(path)
+                .status();
             match status {
                 Ok(s) if s.success() => println!("  {} installed via dpkg", "✓".green()),
                 _ => println!(
@@ -97,7 +104,10 @@ pub fn install_binary(path: &Path, kind: AssetKind) -> Result<()> {
             }
         }
         AssetKind::Rpm => {
-            println!("  {} installing via rpm (may prompt for sudo)...", "→".cyan());
+            println!(
+                "  {} installing via rpm (may prompt for sudo)...",
+                "→".cyan()
+            );
             let status = Command::new("sudo").arg("rpm").arg("-i").arg(path).status();
             match status {
                 Ok(s) if s.success() => println!("  {} installed via rpm", "✓".green()),

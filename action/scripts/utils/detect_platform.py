@@ -1,3 +1,5 @@
+from pathlib import Path
+
 from platform_map import (
     EXTENSION_PLATFORM_MAP,
     FILENAME_PLATFORM_TOKENS,
