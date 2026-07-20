@@ -1,10 +1,8 @@
-//! Thin HTTP client over Supabase PostgREST + Edge Functions for the CLI.
-
 use anyhow::{bail, Context, Result};
 use serde::{Deserialize, Serialize};
 
-const DEFAULT_SUPABASE_URL: &str = "https://harhub-project.supabase.co";
-const DEFAULT_ANON_KEY: &str = "public-anon-key-placeholder";
+const DEFAULT_SUPABASE_URL: &str = "https://hbhqlqogcbwuoizinbtj.supabase.co";
+const DEFAULT_ANON_KEY: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiaHFscW9nY2J3dW9pemluYnRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NDA3NjcsImV4cCI6MjEwMDExNjc2N30.kjSZXUOPfFO1kqrfr2FluK-8yWuhhvj541s23f1sAaY";
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct App {
@@ -22,6 +20,29 @@ pub struct Release {
     pub version: String,
     pub is_latest: bool,
     pub published_at: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UploadUrlResponse {
+    pub upload_url: String,
+    pub token: String,
+    pub storage_path: String,
+}
+
+impl ApiClient {
+    pub async fn create_upload_url(&self, token: &str, app_slug: &str, file_name: &str) -> Result<UploadUrlResponse> {
+        let url = self.functions_url("create-upload-url", "");
+        let resp = reqwest::Client::new()
+            .post(url)
+            .bearer_auth(token)
+            .json(&serde_json::json!({ "app_slug": app_slug, "file_name": file_name }))
+            .send()
+            .await?;
+        if !resp.status().is_success() {
+            bail!("failed to create upload URL: {}", resp.text().await?);
+        }
+        Ok(resp.json::<UploadUrlResponse>().await?)
+    }
 }
 
 #[derive(Debug, Deserialize, Clone)]

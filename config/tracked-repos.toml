@@ -1,0 +1,16 @@
+# only examples
+
+[[repos]]
+owner = "hastagaming"
+repo = "acp"
+app_slug = "acp"
+branch = "acp-downloads"
+visibility = "public"
+
+# this too
+[[repos]]
+owner = "hastagaming"
+repo = "brewer"
+app_slug = "brewer"
+branch = "brewer-downloads"
+visibility = "public"

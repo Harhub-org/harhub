@@ -19,6 +19,10 @@ pub struct PublishArgs {
     pub visibility: String,
 }
 
+async fn request_upload_url(api: &ApiClient, token: &str, app_slug: &str, file_name: &str) -> Result<crate::api::UploadUrlResponse> {
+    api.create_upload_url(token, app_slug, file_name).await
+}
+
 pub async fn run(args: PublishArgs) -> Result<()> {
     let config = Config::load()?;
     let token = config
@@ -42,6 +46,12 @@ pub async fn run(args: PublishArgs) -> Result<()> {
         hasher.update(&buffer[..read]);
         size_bytes += read as u64;
     }
+    let api_check = ApiClient::new(None, None);
+    let check_url = api_check.functions_url("check-slug", &format!("slug={}", args.app_slug));
+    let resp: serde_json::Value = reqwest::get(&check_url).await?.json().await?;
+    if resp["available"] == false {
+        println!("  {} slug '{}' is already taken by another app on Harhub — this will update your own app if you already own it.", "i".blue(), args.app_slug);
+    }
     let sha256 = format!("{:x}", hasher.finalize());
     let file_name = args
         .file
@@ -51,28 +61,28 @@ pub async fn run(args: PublishArgs) -> Result<()> {
         .to_string();
 
     let asset = if args.visibility == "proprietary" {
-        // Proprietary binaries need a pre-signed upload URL from the
-        // backend before the CLI can PUT the file to Storage. That
-        // endpoint (create-upload-url) is a follow-up Edge Function, not
-        // yet wired here — for now this path uploads via a service
-        // endpoint the developer configures locally.
-        bail!(
-            "proprietary publish from the CLI requires the create-upload-url \
-             endpoint (not yet available) — use the GitHub Action for \
-             proprietary releases in the meantime."
-        );
-    } else {
+        let upload_info = request_upload_url(&api, &token, &args.app_slug, &file_name).await?;
+
+        let http = reqwest::Client::new();
+        let file_bytes = std::fs::read(&args.file)?;
+        let put_resp = http
+            .put(&upload_info.upload_url)
+            .header("Content-Type", "application/octet-stream")
+            .body(file_bytes)
+            .send()
+            .await?;
+        if !put_resp.status().is_success() {
+             bail!("upload failed: {}", put_resp.status());
+        }
+
         PublishAssetInput {
             file_name: file_name.clone(),
             platform: args.platform.clone(),
             arch: args.arch.clone(),
             size_bytes,
             sha256,
-            storage_path: None,
-            public_url: Some(format!(
-                "https://github.com/{}/{}/releases/download/{}/{}",
-                args.repo_owner, args.repo_name, args.version, file_name
-            )),
+            storage_path: Some(upload_info.storage_path),
+            public_url: None,
         }
     };
 

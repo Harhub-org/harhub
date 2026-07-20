@@ -1,0 +1,51 @@
+# tgis workflows only for user manual
+
+name: Harhub Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "Target repo to publish, format 'owner/repo'"
+        required: true
+      app_slug:
+        description: "App slug to register/update in Harhub"
+        required: true
+      branch:
+        description: "Branch name to mirror binaries into (defaults to '<app_slug>-downloads')"
+        required: false
+        default: ""
+      visibility:
+        description: "public or proprietary"
+        required: false
+        default: "public"
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # needed for git worktree branch creation
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install --quiet -r scripts/requirements.txt
+
+      - name: Publish target repo's latest release
+        env:
+          GITHUB_TOKEN: ${{ secrets.HARHUB_READ_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TARGET_REPO: ${{ inputs.repo }}
+          TARGET_APP_SLUG: ${{ inputs.app_slug }}
+          TARGET_BRANCH: ${{ inputs.branch }}
+          TARGET_VISIBILITY: ${{ inputs.visibility }}
+        run: python scripts/publish_from_release.py

@@ -19,21 +19,11 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.kotlinxserialization.asConverterFactory
 
-/**
- * Entry point for consuming Harhub from an Android app.
- *
- * Usage:
- * ```
- * val harhub = HarhubClient(
- *     supabaseUrl = "https://xxxx.supabase.co",
- *     supabaseAnonKey = "eyJ...",
- * )
- *
- * val results = harhub.searchApps("bakso")
- * val releases = harhub.getReleases(results.first().id)
- * val downloadUrl = harhub.resolveDownloadUrl(app = results.first(), asset = assets.first())
- * ```
- */
+val harhub = HarhubClient(
+   supabaseUrl = "https://hbhqlqogcbwuoizinbtj.supabase.co",
+   supabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiaHFscW9nY2J3dW9pemluYnRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NDA3NjcsImV4cCI6MjEwMDExNjc2N30.kjSZXUOPfFO1kqrfr2FluK-8yWuhhvj541s23f1sAaY",
+)
+
 class HarhubClient(
     private val supabaseUrl: String,
     private val supabaseAnonKey: String,

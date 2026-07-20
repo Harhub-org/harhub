@@ -1,0 +1,103 @@
+// backend/supabase/functions/create-upload-url/index.ts
+//
+// POST /functions/v1/create-upload-url
+// Authorization: Bearer <developer's JWT>
+//
+// Body: { "app_slug": "myapp", "file_name": "myapp-linux-x86_64" }
+//
+// Returns a short-lived Signed Upload URL for private-apps/{app_id}/{file_name}.
+// The caller PUTs their binary directly to that URL, then calls
+// publish-release with the same storage_path to record metadata.
+// This keeps the (potentially large) binary transfer off this
+// function entirely — it only ever issues a URL.
+
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
+const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const UPLOAD_URL_TTL_SECONDS = 600; // 10 minutes to complete the upload
+
+function jsonError(message: string, status: number): Response {
+  return new Response(JSON.stringify({ error: message }), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+Deno.serve(async (req) => {
+  if (req.method !== "POST") return jsonError("Method not allowed", 405);
+
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader) return jsonError("Missing Authorization header", 401);
+
+  const callerClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false },
+  });
+
+  const { data: userData, error: userError } = await callerClient.auth.getUser();
+  if (userError || !userData?.user) return jsonError("Invalid or expired session", 401);
+
+  let body: { app_slug?: string; file_name?: string };
+  try {
+    body = await req.json();
+  } catch {
+    return jsonError("Invalid JSON body", 400);
+  }
+
+  if (!body.app_slug || !body.file_name) {
+    return jsonError("app_slug and file_name are required", 400);
+  }
+  if (body.file_name.includes("/") || body.file_name.includes("..")) {
+    return jsonError("file_name must not contain path separators", 400);
+  }
+
+  const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+
+  const { data: developer } = await callerClient
+    .from("developers")
+    .select("id, verified")
+    .eq("user_id", userData.user.id)
+    .single();
+
+  if (!developer) return jsonError("No developer profile linked to this account", 403);
+  if (!developer.verified) {
+    return jsonError("Your developer profile must be GitHub-verified before uploading proprietary binaries", 403);
+  }
+
+  // App must exist and be owned by this developer (RLS via callerClient
+  // enforces this naturally — if it's not visible/owned, this returns null).
+  const { data: app } = await callerClient
+    .from("apps")
+    .select("id, developer_id, visibility")
+    .eq("slug", body.app_slug)
+    .single();
+
+  if (!app || app.developer_id !== developer.id) {
+    return jsonError("App not found or not owned by this account", 404);
+  }
+  if (app.visibility !== "proprietary") {
+    return jsonError("create-upload-url is only for proprietary apps — public apps should attach a public_url instead", 400);
+  }
+
+  const storagePath = `${app.id}/${body.file_name}`;
+
+  const { data: signed, error: signError } = await admin.storage
+    .from("private-apps")
+    .createSignedUploadUrl(storagePath);
+
+  if (signError || !signed) {
+    return jsonError(`Failed to create signed upload URL: ${signError?.message}`, 500);
+  }
+
+  return new Response(
+    JSON.stringify({
+      upload_url: signed.signedUrl,
+      token: signed.token,
+      storage_path: storagePath,
+      expires_in_seconds: UPLOAD_URL_TTL_SECONDS,
+    }),
+    { status: 200, headers: { "Content-Type": "application/json" } },
+  );
+});
