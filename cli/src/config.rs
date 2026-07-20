@@ -38,6 +38,7 @@ impl Config {
         Ok(())
     }
 
+    #[allow(dead_code)]
     pub fn is_logged_in(&self) -> bool {
         self.access_token.is_some()
     }

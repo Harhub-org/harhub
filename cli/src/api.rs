@@ -15,6 +15,7 @@ pub struct App {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[allow(dead_code)]
 pub struct Release {
     pub id: String,
     pub version: String,
@@ -23,6 +24,7 @@ pub struct Release {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 pub struct UploadUrlResponse {
     pub upload_url: String,
     pub token: String,
@@ -51,6 +53,7 @@ impl ApiClient {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[allow(dead_code)]
 pub struct Asset {
     pub id: String,
     pub file_name: String,
