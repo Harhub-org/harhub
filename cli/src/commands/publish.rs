@@ -114,7 +114,12 @@ pub async fn run(args: PublishArgs) -> Result<()> {
 
     let url = api.functions_url("publish-release", "");
     let http = reqwest::Client::new();
-    let resp = http.post(url).bearer_auth(token).json(&request).send().await?;
+    let resp = http
+        .post(url)
+        .bearer_auth(token)
+        .json(&request)
+        .send()
+        .await?;
 
     if !resp.status().is_success() {
         bail!("publish failed: {}", resp.text().await?);
@@ -128,4 +133,3 @@ pub async fn run(args: PublishArgs) -> Result<()> {
     );
     Ok(())
 }
-

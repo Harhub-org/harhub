@@ -1,10 +1,10 @@
-package com.hastagaming.harhub.sdk
+package com.harhub.sdk
 
-import com.hastagaming.harhub.sdk.api.HarhubApi
-import com.hastagaming.harhub.sdk.model.AssetPlatform
-import com.hastagaming.harhub.sdk.model.HarhubApp
-import com.hastagaming.harhub.sdk.model.HarhubAsset
-import com.hastagaming.harhub.sdk.model.HarhubRelease
+import com.harhub.sdk.api.HarhubApi
+import com.harhub.sdk.model.AssetPlatform
+import com.harhub.sdk.model.HarhubApp
+import com.harhub.sdk.model.HarhubAsset
+import com.harhub.sdk.model.HarhubRelease
 import io.github.jantennert.supabase.createSupabaseClient
 import io.github.jantennert.supabase.auth.Auth
 import io.github.jantennert.supabase.auth.auth
