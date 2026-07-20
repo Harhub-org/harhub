@@ -17,7 +17,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import okhttp3.MediaType.Companion.toMediaType
 import retrofit2.Retrofit
-import retrofit2.converter.kotlinxserialization.asConverterFactory
+import retrofit2.converter.kotlinx.serialization.asConverterFactory
 
 class HarhubClient(
     private val supabaseUrl: String,
