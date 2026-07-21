@@ -1,0 +1,95 @@
+name: Harhub Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo:
+        description: "Source repo URL to build, e.g. https://github.com/owner/repo"
+        required: true
+      app_slug:
+        description: "App slug to register/update in Harhub"
+        required: true
+      branch:
+        description: "Branch name to mirror the built binary into (defaults to '<app_slug>-downloads')"
+        required: false
+        default: ""
+      visibility:
+        description: "public or proprietary"
+        required: false
+        default: "public"
+      build_system:
+        description: "auto, gradle, make, cmake, cargo, or npm (auto detects from repo files)"
+        required: false
+        default: "auto"
+      module_path:
+        description: "Subdirectory containing the build files, relative to repo root (leave empty for root)"
+        required: false
+        default: ""
+      build_command:
+        description: "Override: exact command to run instead of the auto-picked default for the detected build system"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Harhub
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          path: harhub
+
+      - name: Checkout target repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ inputs.repo }}
+          path: target-repo
+          fetch-depth: 1
+
+      - name: Set up JDK 17 (for Gradle projects)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up build tools (Make, CMake, build-essential)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq build-essential cmake ninja-build
+
+      - name: Set up Rust (for Cargo projects)
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Set up Node.js (for npm/electron-builder projects)
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Harhub script dependencies
+        working-directory: harhub
+        run: pip install --quiet -r scripts/requirements.txt
+
+      - name: Run Harhub build + publish
+        working-directory: harhub
+        env:
+          GITHUB_TOKEN: ${{ secrets.HARHUB_READ_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TARGET_REPO: ${{ inputs.repo }}
+          TARGET_APP_SLUG: ${{ inputs.app_slug }}
+          TARGET_BRANCH: ${{ inputs.branch }}
+          TARGET_VISIBILITY: ${{ inputs.visibility }}
+          BUILD_SYSTEM: ${{ inputs.build_system }}
+          MODULE_PATH: ${{ inputs.module_path }}
+          BUILD_COMMAND_OVERRIDE: ${{ inputs.build_command }}
+          TARGET_REPO_DIR: ${{ github.workspace }}/target-repo
+        run: python scripts/build_from_source.py

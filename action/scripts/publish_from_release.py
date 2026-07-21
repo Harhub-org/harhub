@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from utils.hashing_stream import sha256_of_url
 from utils.platform_detect import detect_platform_and_arch
 from utils.branch_mirror import mirror_release_to_branch
+from urllib.parse import urlparse
 
 GITHUB_API = "https://api.github.com"
 
@@ -66,12 +67,16 @@ class SupabaseAdmin:
         rows = resp.json()
         return rows[0] if rows else None
 
+def _parse_repo_url(url: str) -> tuple[str, str]:
+    path = urlparse(url).path.strip("/")
+    parts = path.removesuffix(".git").split("/")
+    if len(parts) < 2:
+        raise ValueError(f"Invalid GitHub repo URL: {url}")
+    return parts[0], parts[1]
 
 def main() -> None:
     target = env("TARGET_REPO")
-    if "/" not in target:
-        raise ValueError("TARGET_REPO must be in 'owner/repo' format")
-    owner, repo = target.split("/", 1)
+    owner, repo = _parse_repo_url(target_url)
 
     app_slug = env("TARGET_APP_SLUG")
     branch = env("TARGET_BRANCH").strip() or f"{app_slug}-downloads"

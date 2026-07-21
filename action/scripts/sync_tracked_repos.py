@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from utils.hashing_stream import sha256_of_url
 from utils.platform_detect import detect_platform_and_arch
 from utils.branch_mirror import mirror_release_to_branch
+from urllib.parse import urlparse
 
 GITHUB_API = "https://api.github.com"
 
@@ -30,12 +31,31 @@ GITHUB_API = "https://api.github.com"
 def env(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
 
+def _parse_repo_url(url: str) -> tuple[str, str]:
+    """Parses 'https://github.com/owner/repo' (with or without trailing
+    slash, .git suffix, or extra path) into (owner, repo)."""
+    path = urlparse(url).path.strip("/")
+    parts = path.removesuffix(".git").split("/")
+    if len(parts) < 2:
+        raise ValueError(f"Invalid GitHub repo URL: {url}")
+    return parts[0], parts[1]
 
 def load_tracked_repos() -> list[dict]:
     config_path = Path(__file__).parent.parent / "config" / "tracked-repos.toml"
     with open(config_path, "rb") as f:
         data = tomllib.load(f)
-    repos = data.get("repos", [])
+    raw_repos = data.get("repos", [])
+
+    repos = []
+    for entry in raw_repos:
+        owner, repo = _parse_repo_url(entry["url"])
+        repos.append({
+            "owner": owner,
+            "repo": repo,
+            "app_slug": entry["app_slug"],
+            "branch": entry.get("branch", f"{entry['app_slug']}-downloads"),
+            "visibility": entry.get("visibility", "public"),
+        })
 
     single = env("SYNC_SINGLE_REPO").strip()
     if single:

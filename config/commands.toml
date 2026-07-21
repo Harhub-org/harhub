@@ -1,0 +1,23 @@
+# Custom build commands per app, for repos whose build output doesn't
+# land in a standard location the auto-detector expects. If an app_slug
+# has no entry here, Harhub falls back to auto-detecting the build
+# system (gradle/cmake/make/cargo/npm) and its default command.
+
+[[commands]]
+app_slug = "acp"
+build_system = "make"
+build_command = "make release"
+output_path = "build/acp"
+
+[[commands]]
+app_slug = "weird-cpp-tool"
+build_system = "cmake"
+build_command = "cmake -B out -DCMAKE_BUILD_TYPE=Release && cmake --build out --target mytool"
+output_path = "out/bin/mytool"
+
+# output_path can also be a glob if the exact filename varies:
+[[commands]]
+app_slug = "multi-output-app"
+build_system = "make"
+build_command = "make all"
+output_glob = "dist/*.tar.gz"

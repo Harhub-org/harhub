@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       repo:
-        description: "Target repo to publish, format 'owner/repo'"
+        description: "Target repo URL, e.g. https://github.com/owner/repo"
         required: true
       app_slug:
         description: "App slug to register/update in Harhub"
