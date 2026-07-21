@@ -4,6 +4,11 @@ For developers who haven't published a compiled binary yet — only source
 code in their repo. Detects the project's build system automatically
 (Gradle, CMake, Make, Cargo, npm — or an explicit override), runs it, and
 mirrors whatever binaries it produces into the target branch.
+
+Build command resolution order:
+  1. config/commands.toml entry for this app_slug (always wins if present)
+  2. build_command manual input from workflow_dispatch
+  3. auto-detected default command for the detected build system
 """
 
 import hashlib
@@ -17,10 +22,14 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from utils.branch_mirror import mirror_local_assets_to_branch
-from utils.build_systems import detect_build_system, run_build, find_built_binaries
-from utils.platform_detect import detect_platform_and_arch
 from utils.build_config import load_command_override
-from utils.build_systems import detect_build_system, run_build, find_built_binaries, find_binary_by_override
+from utils.build_systems import (
+    detect_build_system,
+    run_build,
+    find_built_binaries,
+    find_binary_by_override,
+)
+from utils.platform_detect import detect_platform_and_arch
 
 
 def env(name: str, default: str = "") -> str:
@@ -106,8 +115,6 @@ def main() -> None:
             conflict="github_username",
         )
 
-    # Check config/commands.toml first — a saved override always wins over
-    # both auto-detection and any one-off manual input for this app_slug.
     override = load_command_override(app_slug)
 
     if override:
@@ -124,9 +131,6 @@ def main() -> None:
         print(f"Detected build system: {build_system.name}")
         run_build(project_dir, build_system, build_command_override)
         built_binaries = find_built_binaries(project_dir, build_system)
-
-    run_build(project_dir, build_system, build_command_override)
-    built_binaries = find_built_binaries(project_dir, build_system)
 
     version = subprocess.run(
         ["git", "rev-parse", "--short", "HEAD"],

@@ -4,6 +4,11 @@ For developers who haven't published a compiled binary yet — only source
 code in their repo. Detects the project's build system automatically
 (Gradle, CMake, Make, Cargo, npm — or an explicit override), runs it, and
 mirrors whatever binaries it produces into the target branch.
+
+Build command resolution order:
+  1. config/commands.toml entry for this app_slug (always wins if present)
+  2. build_command manual input from workflow_dispatch
+  3. auto-detected default command for the detected build system
 """
 
 import hashlib
@@ -17,9 +22,14 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from utils.branch_mirror import mirror_local_assets_to_branch
-from utils.build_systems import detect_build_system, run_build, find_built_binaries, find_binary_by_override
-from utils.platform_detect import detect_platform_and_arch
 from utils.build_config import load_command_override
+from utils.build_systems import (
+    detect_build_system,
+    run_build,
+    find_built_binaries,
+    find_binary_by_override,
+)
+from utils.platform_detect import detect_platform_and_arch
 
 
 def env(name: str, default: str = "") -> str:
@@ -105,11 +115,22 @@ def main() -> None:
             conflict="github_username",
         )
 
-    build_system = detect_build_system(project_dir, forced_build_system)
-    print(f"Detected build system: {build_system.name}")
+    override = load_command_override(app_slug)
 
-    run_build(project_dir, build_system, build_command_override)
-    built_binaries = find_built_binaries(project_dir, build_system)
+    if override:
+        print(f"[config] using saved command override for '{app_slug}' from config/commands.toml")
+        build_system = detect_build_system(project_dir, override.get("build_system", "auto"))
+        run_build(project_dir, build_system, override["build_command"])
+        built_binaries = find_binary_by_override(
+            project_dir,
+            output_path=override.get("output_path", ""),
+            output_glob=override.get("output_glob", ""),
+        )
+    else:
+        build_system = detect_build_system(project_dir, forced_build_system)
+        print(f"Detected build system: {build_system.name}")
+        run_build(project_dir, build_system, build_command_override)
+        built_binaries = find_built_binaries(project_dir, build_system)
 
     version = subprocess.run(
         ["git", "rev-parse", "--short", "HEAD"],

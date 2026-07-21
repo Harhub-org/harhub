@@ -1,17 +1,18 @@
 """Harhub on-demand publish job — triggered manually via workflow_dispatch
-in the official Harhub repo. Given a target 'owner/repo', fetches its
-latest GitHub Release and mirrors the assets into a dedicated branch in
-the Harhub repo itself, using the exact same mechanism as the scheduled
-sync job (scripts/sync_tracked_repos.py).
+in the official Harhub repo. Given a target repo URL, fetches its latest
+GitHub Release and mirrors the assets into a dedicated branch in the
+Harhub repo itself, using the same mechanism as the scheduled sync job
+(scripts/sync_tracked_repos.py).
 """
 
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from utils.hashing_stream import sha256_of_url
 from utils.platform_detect import detect_platform_and_arch
 from utils.branch_mirror import mirror_release_to_branch
@@ -21,6 +22,14 @@ GITHUB_API = "https://api.github.com"
 
 def env(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
+
+
+def _parse_repo_url(url: str) -> tuple[str, str]:
+    path = urlparse(url).path.strip("/")
+    parts = path.removesuffix(".git").split("/")
+    if len(parts) < 2:
+        raise ValueError(f"Invalid GitHub repo URL: {url}")
+    return parts[0], parts[1]
 
 
 def github_headers(token: str) -> dict:
@@ -68,10 +77,8 @@ class SupabaseAdmin:
 
 
 def main() -> None:
-    target = env("TARGET_REPO")
-    if "/" not in target:
-        raise ValueError("TARGET_REPO must be in 'owner/repo' format")
-    owner, repo = target.split("/", 1)
+    target_url = env("TARGET_REPO")
+    owner, repo = _parse_repo_url(target_url)
 
     app_slug = env("TARGET_APP_SLUG")
     branch = env("TARGET_BRANCH").strip() or f"{app_slug}-downloads"
@@ -82,19 +89,18 @@ def main() -> None:
 
     developer = db.select_one("developers", {"github_username": owner})
     if developer is None:
-        raise RuntimeError(
-            f"No developer profile found for GitHub user '{owner}'. "
-            f"Register a developer profile before publishing this repo."
+        print(f"[auto] no developer profile for '{owner}' — creating an unverified placeholder")
+        developer = db.upsert(
+            "developers",
+            {"github_username": owner, "verified": False},
+            conflict="github_username",
         )
-    app_status = "published" if developer.get("verified") else "draft"
-    if app_status == "draft":
-        print(f"[warn] {owner}/{repo}: developer not verified — publishing as draft")
 
     release = fetch_latest_release(owner, repo, token)
     version = release["tag_name"]
     raw_assets = release.get("assets", [])
     if not raw_assets:
-        print(f"{target}: latest release {version} has no binary assets — nothing to publish.")
+        print(f"{target_url}: latest release {version} has no binary assets — nothing to publish.")
         return
 
     prepared_assets = []
@@ -122,6 +128,10 @@ def main() -> None:
         version=version,
     )
 
+    app_status = "published" if developer.get("verified") else "draft"
+    if app_status == "draft":
+        print(f"[warn] {owner}/{repo}: developer not verified — publishing as draft")
+
     app_row = db.upsert(
         "apps",
         {
@@ -130,7 +140,7 @@ def main() -> None:
             "name": repo,
             "repo_owner": owner,
             "repo_name": repo,
-            "repo_url": f"https://github.com/{owner}/{repo}",
+            "repo_url": target_url,
             "visibility": visibility,
             "status": app_status,
         },
@@ -158,7 +168,7 @@ def main() -> None:
             conflict="release_id,file_name",
         )
 
-    print(f"Published {target} {version} → branch '{branch}' ({len(prepared_assets)} assets).")
+    print(f"Published {target_url} {version} → branch '{branch}' ({len(prepared_assets)} assets).")
 
 
 if __name__ == "__main__":
