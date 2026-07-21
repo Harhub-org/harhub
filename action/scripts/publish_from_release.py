@@ -75,7 +75,7 @@ def _parse_repo_url(url: str) -> tuple[str, str]:
     return parts[0], parts[1]
 
 def main() -> None:
-    target = env("TARGET_REPO")
+    targe_urlt = env("TARGET_REPO")
     owner, repo = _parse_repo_url(target_url)
 
     app_slug = env("TARGET_APP_SLUG")

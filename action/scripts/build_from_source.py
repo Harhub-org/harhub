@@ -17,8 +17,9 @@ import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from utils.branch_mirror import mirror_local_assets_to_branch
-from utils.build_systems import detect_build_system, run_build, find_built_binaries
+from utils.build_systems import detect_build_system, run_build, find_built_binaries, find_binary_by_override
 from utils.platform_detect import detect_platform_and_arch
+from utils.build_config import load_command_override
 
 
 def env(name: str, default: str = "") -> str:
