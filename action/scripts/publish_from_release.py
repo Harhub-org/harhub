@@ -8,14 +8,14 @@ sync job (scripts/sync_tracked_repos.py).
 import os
 import sys
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 
-sys.path.insert(0, str(Path(__file__).parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from utils.hashing_stream import sha256_of_url
 from utils.platform_detect import detect_platform_and_arch
 from utils.branch_mirror import mirror_release_to_branch
-from urllib.parse import urlparse
 
 GITHUB_API = "https://api.github.com"
 
@@ -75,7 +75,7 @@ def _parse_repo_url(url: str) -> tuple[str, str]:
     return parts[0], parts[1]
 
 def main() -> None:
-    targe_urlt = env("TARGET_REPO")
+    target_url = env("TARGET_REPO")
     owner, repo = _parse_repo_url(target_url)
 
     app_slug = env("TARGET_APP_SLUG")
