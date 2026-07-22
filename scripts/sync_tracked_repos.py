@@ -1,10 +1,11 @@
 """Harhub central sync job.
 
-For each entry in config/tracked-repos.toml:
-  1. Fetch the latest GitHub Release for that owner/repo.
+For each entry in config/tracked-repos.toml (using `url` fields, e.g.
+"https://github.com/owner/repo"):
+  1. Fetch the latest GitHub Release for that repo.
   2. Skip if we've already synced this exact tag (tracked in Supabase).
   3. Hash + detect platform for each asset.
-  4. Mirror the assets into that repo's DEDICATED branch (per `branch`
+  4. Mirror the assets into that repo's dedicated branch (per `branch`
      field in tracked-repos.toml) at the Harhub repo's root — always
      overwriting with the latest release's files, original filenames
      kept as-is (e.g. app-arm64.apk).
@@ -16,10 +17,14 @@ import os
 import sys
 import tomllib
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 
-sys.path.insert(0, str(Path(__file__).parent))
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
 from utils.hashing_stream import sha256_of_url
 from utils.platform_detect import detect_platform_and_arch
 from utils.branch_mirror import mirror_release_to_branch
@@ -31,11 +36,30 @@ def env(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
 
 
+def _parse_repo_url(url: str) -> tuple[str, str]:
+    path = urlparse(url).path.strip("/")
+    parts = path.removesuffix(".git").split("/")
+    if len(parts) < 2:
+        raise ValueError(f"Invalid GitHub repo URL: {url}")
+    return parts[0], parts[1]
+
+
 def load_tracked_repos() -> list[dict]:
     config_path = Path(__file__).parent.parent / "config" / "tracked-repos.toml"
     with open(config_path, "rb") as f:
         data = tomllib.load(f)
-    repos = data.get("repos", [])
+    raw_repos = data.get("repos", [])
+
+    repos = []
+    for entry in raw_repos:
+        owner, repo = _parse_repo_url(entry["url"])
+        repos.append({
+            "owner": owner,
+            "repo": repo,
+            "app_slug": entry["app_slug"],
+            "branch": entry.get("branch", f"{entry['app_slug']}-downloads"),
+            "visibility": entry.get("visibility", "public"),
+        })
 
     single = env("SYNC_SINGLE_REPO").strip()
     if single:
@@ -95,8 +119,8 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
     owner = entry["owner"]
     repo = entry["repo"]
     slug = entry["app_slug"]
-    branch = entry.get("branch", f"{slug}-downloads")
-    visibility = entry.get("visibility", "public")
+    branch = entry["branch"]
+    visibility = entry["visibility"]
 
     release = fetch_latest_release(owner, repo, token)
     if release is None:
@@ -111,8 +135,12 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
 
     developer = db.select_one("developers", {"github_username": owner})
     if developer is None:
-        print(f"[skip] {owner}/{repo}: no developer profile for '{owner}' yet — register first")
-        return
+        print(f"[auto] no developer profile for '{owner}' — creating an unverified placeholder")
+        developer = db.upsert(
+            "developers",
+            {"github_username": owner, "verified": False},
+            conflict="github_username",
+        )
 
     app_status = "published" if developer.get("verified") else "draft"
     if app_status == "draft":
