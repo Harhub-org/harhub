@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from utils.harhub_release import publish_to_harhub_release
 from utils.tracked_repos import find_tracked_repo
 from utils.branch_mirror import mirror_local_assets_to_branch
 from utils.build_config import load_command_override
@@ -168,6 +169,15 @@ def main() -> None:
         assets=prepared_assets,
         version=version,
     )
+
+    harhub_token = env("HARHUB_REPO_TOKEN")
+    if harhub_token:
+        publish_to_harhub_release(
+            token=harhub_token,
+            app_slug=app_slug,
+            version=version,
+            assets=prepared_assets,
+        )
 
     app_status = "published" if developer.get("verified") else "draft"
     if app_status == "draft":

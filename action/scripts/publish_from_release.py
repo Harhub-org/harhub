@@ -46,6 +46,12 @@ def fetch_latest_release(owner: str, repo: str, token: str) -> dict:
     resp.raise_for_status()
     return resp.json()
 
+def fetch_release_by_tag(owner: str, repo: str, tag: str, token: str) -> dict:
+    url = f"{GITHUB_API}/repos/{owner}/{repo}/releases/tags/{tag}"
+    resp = requests.get(url, headers=github_headers(token), timeout=30)
+    resp.raise_for_status()
+    return resp.json()
+
 
 class SupabaseAdmin:
     def __init__(self, url: str, service_key: str):
@@ -97,7 +103,12 @@ def main() -> None:
             conflict="github_username",
         )
 
-    release = fetch_latest_release(owner, repo, token)
+    pinned_version = tracked.get("version", "").strip() if tracked else ""
+    release = (
+        fetch_release_by_tag(owner, repo, pinned_version, token)
+        if pinned_version
+        else fetch_latest_release(owner, repo, token)
+    )
     version = release["tag_name"]
     raw_assets = release.get("assets", [])
     if not raw_assets:

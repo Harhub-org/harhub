@@ -37,12 +37,28 @@ jobs:
           fi
           echo "repo=$REPO_URL" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve repo (and pinned version) from config/tracked-repos.toml
+        id: resolve
+        working-directory: harhub
+        run: |
+          python3 -c "
+          import tomllib
+          with open('config/tracked-repos.toml', 'rb') as f:
+              data = tomllib.load(f)
+          entry = next((r for r in data.get('repos', []) if r['app_slug'] == '${{ inputs.app_slug }}'), None)
+          if entry is None:
+              raise SystemExit(\"app_slug not found in config/tracked-repos.toml\")
+          print(f\"repo={entry['url']}\")
+          print(f\"pinned_version={entry.get('version', '')}\")
+          " >> "$GITHUB_OUTPUT"
+
       - name: Checkout target repo
         uses: actions/checkout@v4
         with:
           repository: ${{ steps.resolve.outputs.repo }}
           path: target-repo
           fetch-depth: 1
+          ref: ${{ steps.resolve.outputs.pinned_version }}
 
       - name: Set up JDK 17 (for Gradle projects)
         uses: actions/setup-java@v4
@@ -80,4 +96,5 @@ jobs:
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           TARGET_APP_SLUG: ${{ inputs.app_slug }}
           TARGET_REPO_DIR: ${{ github.workspace }}/target-repo
+          HARHUB_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/build_from_source.py

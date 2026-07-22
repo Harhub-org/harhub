@@ -2,11 +2,11 @@ name: Harhub Sync
 
 on:
   schedule:
-    - cron: "*/15 * * * *"   # poll every 15 minutes for new releases
+    - cron: "*/15 * * * *"
   workflow_dispatch:
     inputs:
-      repo:
-        description: "Optional: sync a single 'owner/repo' immediately instead of the full list"
+      app_slug:
+        description: "Optional: sync a single app_slug immediately instead of the full list"
         required: false
         default: ""
 
@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0   # needed for git worktree branch creation
+          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -27,12 +27,13 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install --quiet -r action/scripts/requirements.txt
+        run: pip install --quiet -r scripts/requirements.txt
 
       - name: Sync tracked repos
         env:
           GITHUB_TOKEN: ${{ secrets.HARHUB_READ_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          SYNC_SINGLE_REPO: ${{ inputs.repo }}
+          HARHUB_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SYNC_SINGLE_APP_SLUG: ${{ inputs.app_slug }}
         run: python scripts/sync_tracked_repos.py

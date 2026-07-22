@@ -25,6 +25,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from utils.tracked_repos import load_all_tracked_repos
 from utils.hashing_stream import sha256_of_url # noqa: E402
 from utils.platform_detect import detect_platform_and_arch # noqa: E402
 from utils.branch_mirror import mirror_release_to_branch # noqa: E402
@@ -36,35 +37,12 @@ def env(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
 
 
-def _parse_repo_url(url: str) -> tuple[str, str]:
-    path = urlparse(url).path.strip("/")
-    parts = path.removesuffix(".git").split("/")
-    if len(parts) < 2:
-        raise ValueError(f"Invalid GitHub repo URL: {url}")
-    return parts[0], parts[1]
-
-
 def load_tracked_repos() -> list[dict]:
-    config_path = Path(__file__).parent.parent / "config" / "tracked-repos.toml"
-    with open(config_path, "rb") as f:
-        data = tomllib.load(f)
-    raw_repos = data.get("repos", [])
+    repos = load_all_tracked_repos()
 
-    repos = []
-    for entry in raw_repos:
-        owner, repo = _parse_repo_url(entry["url"])
-        repos.append({
-            "owner": owner,
-            "repo": repo,
-            "app_slug": entry["app_slug"],
-            "branch": entry.get("branch", f"{entry['app_slug']}-downloads"),
-            "visibility": entry.get("visibility", "public"),
-        })
-
-    single = env("SYNC_SINGLE_REPO").strip()
-    if single:
-        owner, _, name = single.partition("/")
-        repos = [r for r in repos if r["owner"] == owner and r["repo"] == name]
+    single_slug = env("SYNC_SINGLE_APP_SLUG").strip()
+    if single_slug:
+        repos = [r for r in repos if r["app_slug"] == single_slug]
 
     return repos
 
@@ -81,6 +59,12 @@ def fetch_latest_release(owner: str, repo: str, token: str) -> dict | None:
     resp = requests.get(url, headers=github_headers(token), timeout=30)
     if resp.status_code == 404:
         return None
+    resp.raise_for_status()
+    return resp.json()
+
+def fetch_release_by_tag(owner: str, repo: str, tag: str, token: str) -> dict:
+    url = f"{GITHUB_API}/repos/{owner}/{repo}/releases/tags/{tag}"
+    resp = requests.get(url, headers=github_headers(token), timeout=30)
     resp.raise_for_status()
     return resp.json()
 
@@ -121,8 +105,13 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
     slug = entry["app_slug"]
     branch = entry["branch"]
     visibility = entry["visibility"]
+    pinned_version = entry.get("version", "").strip()
 
-    release = fetch_latest_release(owner, repo, token)
+    release = (
+        fetch_release_by_tag(owner, repo, pinned_version, token)
+        if pinned_version
+        else fetch_latest_release(owner, repo, token)
+    )
     if release is None:
         print(f"[skip] {owner}/{repo}: no releases found")
         return
@@ -189,6 +178,16 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
         github_token=token,
         version=version,
     )
+
+    harhub_token = env("HARHUB_REPO_TOKEN")
+    if harhub_token:
+        download_then_upload_to_release(
+            token=harhub_token,
+            app_slug=slug,
+            version=version,
+            assets=prepared_assets,
+            github_download_headers=github_headers(token),
+        )
 
     release_row = db.upsert(
         "releases",

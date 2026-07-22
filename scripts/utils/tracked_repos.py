@@ -1,7 +1,7 @@
 """Shared loader for config/tracked-repos.toml — used by every
 harhub-*.yml pipeline (manual publish, build-from-source, scheduled sync)
-so every field (repo, branch, visibility, build settings) is sourced
-from this one config file, keyed by app_slug.
+so every field (repo, branch, visibility, build settings, pinned version)
+is sourced from this one config file, keyed by app_slug.
 """
 
 import tomllib
@@ -37,6 +37,7 @@ def load_all_tracked_repos() -> list[dict]:
             "visibility": entry.get("visibility", "public"),
             "module_path": entry.get("module_path", ""),
             "build_system": entry.get("build_system", "auto"),
+            "version": entry.get("version", ""),
         })
     return repos
 

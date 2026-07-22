@@ -136,6 +136,16 @@ def main() -> None:
         version=version,
     )
 
+    harhub_token = env("HARHUB_REPO_TOKEN")
+    if harhub_token:
+        download_then_upload_to_release(
+            token=harhub_token,
+            app_slug=app_slug,
+            version=version,
+            assets=prepared_assets,  # each has source_url
+            github_download_headers=github_headers(token),
+        )
+
     app_status = "published" if developer.get("verified") else "draft"
     if app_status == "draft":
         print(f"[warn] {owner}/{repo}: developer not verified — publishing as draft")
