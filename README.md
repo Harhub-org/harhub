@@ -1,11 +1,8 @@
 <div align="center">
-    <img src="assets/Harhub.svg"> <p>the dwonload page</p>
+    <img src="assets/Harhub.svg"> <p>the download page</p>
 # Harhub
 
-**Turn any GitHub repo into a professional app download page.**
-
-Not an app store. Not a package manager. Not a place to store your source code.
-Harhub automates binaries, metadata, README rendering, and the app registry around them.
+trun your propietary and public repo to Harhub.
 </div>
 
 add yours file link to the branch:

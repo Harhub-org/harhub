@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from utils.tracked_repos import find_tracked_repo
 from utils.hashing_stream import sha256_of_url
 from utils.platform_detect import detect_platform_and_arch
+from utils.harhub_release import download_then_upload_to_release
 from utils.branch_mirror import mirror_release_to_branch
 
 GITHUB_API = "https://api.github.com"
