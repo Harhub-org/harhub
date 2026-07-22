@@ -1,16 +1,15 @@
-# only examples
-
 [[repos]]
 url = "https://github.com/hastagaming/acp"
-repo = "acp"
 app_slug = "acp"
 branch = "acp-downloads"
 visibility = "public"
+module_path = ""
+build_system = "auto"
 
-# this too
 [[repos]]
-owner = "hastagaming"
-repo = "brewer"
+url = "https://github.com/hastagaming/brewer"
 app_slug = "brewer"
 branch = "brewer-downloads"
 visibility = "public"
+module_path = ""
+build_system = "auto"

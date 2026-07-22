@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from utils.tracked_repos import find_tracked_repo
 from utils.hashing_stream import sha256_of_url
 from utils.platform_detect import detect_platform_and_arch
 from utils.branch_mirror import mirror_release_to_branch
@@ -77,12 +78,19 @@ class SupabaseAdmin:
 
 
 def main() -> None:
-    target_url = env("TARGET_REPO")
-    owner, repo = _parse_repo_url(target_url)
-
     app_slug = env("TARGET_APP_SLUG")
-    branch = env("TARGET_BRANCH").strip() or f"{app_slug}-downloads"
-    visibility = env("TARGET_VISIBILITY", "public")
+
+    tracked = find_tracked_repo(app_slug)
+    if tracked is None:
+        raise RuntimeError(
+            f"app_slug '{app_slug}' has no matching entry in config/tracked-repos.toml — add one before running this pipeline."
+        )
+
+    target_url = tracked["url"]
+    owner, repo = tracked["owner"], tracked["repo"]
+    branch = tracked["branch"]
+    visibility = tracked["visibility"]
+
     token = env("GITHUB_TOKEN")
 
     db = SupabaseAdmin(env("SUPABASE_URL"), env("SUPABASE_SERVICE_KEY"))

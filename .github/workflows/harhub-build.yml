@@ -3,32 +3,9 @@ name: Harhub Build
 on:
   workflow_dispatch:
     inputs:
-      repo:
-        description: "Source repo URL to build, e.g. https://github.com/owner/repo"
-        required: true
       app_slug:
-        description: "App slug to register/update in Harhub"
+        description: "App slug — must have a matching entry in config/tracked-repos.toml. Build command/output comes from config/commands.toml if present, otherwise auto-detected."
         required: true
-      branch:
-        description: "Branch name to mirror the built binary into (defaults to '<app_slug>-downloads')"
-        required: false
-        default: ""
-      visibility:
-        description: "public or proprietary"
-        required: false
-        default: "public"
-      build_system:
-        description: "auto, gradle, make, cmake, cargo, or npm (auto detects from repo files)"
-        required: false
-        default: "auto"
-      module_path:
-        description: "Subdirectory containing the build files, relative to repo root (leave empty for root)"
-        required: false
-        default: ""
-      build_command:
-        description: "Override: exact command to run instead of the auto-picked default for the detected build system"
-        required: false
-        default: ""
 
 permissions:
   contents: write
@@ -43,10 +20,27 @@ jobs:
           fetch-depth: 0
           path: harhub
 
+      - name: Resolve repo from config/tracked-repos.toml
+        id: resolve
+        working-directory: harhub
+        run: |
+          REPO_URL=$(python3 -c "
+          import tomllib
+          with open('config/tracked-repos.toml', 'rb') as f:
+              data = tomllib.load(f)
+          match = next((r['url'] for r in data.get('repos', []) if r['app_slug'] == '${{ inputs.app_slug }}'), '')
+          print(match)
+          ")
+          if [ -z "$REPO_URL" ]; then
+            echo "::error::app_slug '${{ inputs.app_slug }}' has no matching entry in config/tracked-repos.toml — add one before running this workflow."
+            exit 1
+          fi
+          echo "repo=$REPO_URL" >> "$GITHUB_OUTPUT"
+
       - name: Checkout target repo
         uses: actions/checkout@v4
         with:
-          repository: ${{ inputs.repo }}
+          repository: ${{ steps.resolve.outputs.repo }}
           path: target-repo
           fetch-depth: 1
 
@@ -84,12 +78,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.HARHUB_READ_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
-          TARGET_REPO: ${{ inputs.repo }}
           TARGET_APP_SLUG: ${{ inputs.app_slug }}
-          TARGET_BRANCH: ${{ inputs.branch }}
-          TARGET_VISIBILITY: ${{ inputs.visibility }}
-          BUILD_SYSTEM: ${{ inputs.build_system }}
-          MODULE_PATH: ${{ inputs.module_path }}
-          BUILD_COMMAND_OVERRIDE: ${{ inputs.build_command }}
           TARGET_REPO_DIR: ${{ github.workspace }}/target-repo
         run: python scripts/build_from_source.py

@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from utils.tracked_repos import find_tracked_repo
 from utils.branch_mirror import mirror_local_assets_to_branch
 from utils.build_config import load_command_override
 from utils.build_systems import (
@@ -88,15 +89,21 @@ class SupabaseAdmin:
 
 
 def main() -> None:
-    target_url = env("TARGET_REPO")
-    owner, repo = _parse_repo_url(target_url)
-
     app_slug = env("TARGET_APP_SLUG")
-    branch = env("TARGET_BRANCH").strip() or f"{app_slug}-downloads"
-    visibility = env("TARGET_VISIBILITY", "public")
-    forced_build_system = env("BUILD_SYSTEM", "auto")
-    module_path = env("MODULE_PATH", "")
-    build_command_override = env("BUILD_COMMAND_OVERRIDE", "")
+
+    tracked = find_tracked_repo(app_slug)
+    if tracked is None:
+        raise RuntimeError(
+            f"app_slug '{app_slug}' has no matching entry in config/tracked-repos.toml — add one before running this pipeline."
+        )
+
+    target_url = tracked["url"]
+    owner, repo = tracked["owner"], tracked["repo"]
+    branch = tracked["branch"]
+    visibility = tracked["visibility"]
+    module_path = tracked["module_path"]
+    forced_build_system = tracked["build_system"]
+
     target_repo_dir = Path(env("TARGET_REPO_DIR")).resolve()
 
     if not target_repo_dir.exists():
@@ -129,7 +136,7 @@ def main() -> None:
     else:
         build_system = detect_build_system(project_dir, forced_build_system)
         print(f"Detected build system: {build_system.name}")
-        run_build(project_dir, build_system, build_command_override)
+        run_build(project_dir, build_system, "")
         built_binaries = find_built_binaries(project_dir, build_system)
 
     version = subprocess.run(
