@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harhub — Sign in</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0B0812;
+    --bg-panel: #14101F;
+    --bg-panel-2: #1A1528;
+    --border: #2A2340;
+    --border-soft: #211B33;
+    --text: #F3F1FA;
+    --text-dim: #9C93B8;
+    --text-faint: #6B6389;
+    --purple: #8B5CF6;
+    --purple-bright: #A78BFA;
+    --purple-deep: #6D28D9;
+    --green: #34D399;
+    --red: #F87171;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { color-scheme: dark; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 600px 400px at 15% 10%, rgba(139, 92, 246, 0.12), transparent 60%),
+      radial-gradient(ellipse 500px 500px at 85% 90%, rgba(109, 40, 217, 0.10), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .shell {
+    position: relative;
+    z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr;
+    min-height: 100vh;
+  }
+
+  @media (min-width: 980px) {
+    .shell {
+      grid-template-columns: 1.15fr 1fr;
+    }
+  }
+
+  /* ---------- Left: brand + terminal signature ---------- */
+
+  .brand-side {
+    display: none;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 56px 64px;
+    border-right: 1px solid var(--border-soft);
+  }
+
+  @media (min-width: 980px) {
+    .brand-side { display: flex; }
+  }
+
+  .brand-mark {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .brand-mark svg { width: 32px; height: 32px; flex-shrink: 0; }
+
+  .brand-mark span {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 20px;
+    letter-spacing: -0.01em;
+  }
+
+  .brand-copy {
+    max-width: 420px;
+    margin-top: 64px;
+  }
+
+  .brand-copy h1 {
+    font-family: var(--font-display);
+    font-size: 40px;
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+
+  .brand-copy h1 em {
+    font-style: normal;
+    background: linear-gradient(135deg, var(--purple-bright), var(--purple));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .brand-copy p {
+    color: var(--text-dim);
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  /* Terminal signature element */
+  .terminal {
+    margin-top: 40px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    max-width: 460px;
+    box-shadow: 0 20px 60px -20px rgba(0,0,0,0.6);
+  }
+
+  .terminal-bar {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    padding: 11px 14px;
+    background: var(--bg-panel-2);
+    border-bottom: 1px solid var(--border-soft);
+  }
+
+  .terminal-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--border);
+  }
+
+  .terminal-bar span.label {
+    margin-left: 8px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-faint);
+  }
+
+  .terminal-body {
+    padding: 18px 18px 22px;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.9;
+    min-height: 168px;
+  }
+
+  .terminal-body .prompt { color: var(--purple-bright); }
+  .terminal-body .cmd { color: var(--text); }
+  .terminal-body .out { color: var(--text-dim); }
+  .terminal-body .ok { color: var(--green); }
+  .terminal-body .cursor {
+    display: inline-block;
+    width: 7px; height: 15px;
+    background: var(--purple-bright);
+    vertical-align: middle;
+    margin-left: 2px;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink { 50% { opacity: 0; } }
+
+  .brand-foot {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-faint);
+  }
+
+  /* ---------- Right: auth panel ---------- */
+
+  .auth-side {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px 24px;
+  }
+
+  .auth-card {
+    width: 100%;
+    max-width: 380px;
+  }
+
+  .mobile-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 40px;
+  }
+
+  @media (min-width: 980px) {
+    .mobile-brand { display: none; }
+  }
+
+  .mobile-brand svg { width: 26px; height: 26px; }
+  .mobile-brand span {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 17px;
+  }
+
+  .auth-head h2 {
+    font-family: var(--font-display);
+    font-size: 26px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin-bottom: 6px;
+  }
+
+  .auth-head p {
+    color: var(--text-dim);
+    font-size: 14px;
+    margin-bottom: 28px;
+  }
+
+  .tabs {
+    display: flex;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px;
+    margin-bottom: 24px;
+  }
+
+  .tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 0;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-faint);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: color 0.15s, background 0.15s;
+    user-select: none;
+  }
+
+  .tab.active {
+    color: var(--text);
+    background: var(--bg-panel-2);
+  }
+
+  .field { margin-bottom: 16px; }
+
+  .field label {
+    display: block;
+    font-size: 12.5px;
+    color: var(--text-dim);
+    margin-bottom: 7px;
+    font-weight: 500;
+  }
+
+  .field input {
+    width: 100%;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 11px 13px;
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+  }
+
+  .field input::placeholder { color: var(--text-faint); }
+
+  .field input:focus {
+    border-color: var(--purple);
+    background: var(--bg-panel-2);
+  }
+
+  .field input:focus-visible {
+    outline: 2px solid var(--purple-bright);
+    outline-offset: 1px;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 12px 0;
+    border-radius: 8px;
+    border: none;
+    background: linear-gradient(135deg, var(--purple-bright), var(--purple-deep));
+    color: #fff;
+    font-family: var(--font-body);
+    font-weight: 600;
+    font-size: 14px;
+    cursor: pointer;
+    transition: filter 0.15s, transform 0.1s;
+    margin-top: 4px;
+  }
+
+  .btn-primary:hover { filter: brightness(1.08); }
+  .btn-primary:active { transform: scale(0.99); }
+  .btn-primary:disabled { opacity: 0.55; cursor: not-allowed; }
+  .btn-primary:focus-visible { outline: 2px solid var(--purple-bright); outline-offset: 2px; }
+
+  .divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 20px 0;
+    color: var(--text-faint);
+    font-size: 12px;
+  }
+
+  .divider::before, .divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .btn-github {
+    width: 100%;
+    padding: 11px 0;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg-panel);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-weight: 500;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    transition: background 0.15s, border-color 0.15s;
+  }
+
+  .btn-github:hover { background: var(--bg-panel-2); border-color: var(--text-faint); }
+  .btn-github:focus-visible { outline: 2px solid var(--purple-bright); outline-offset: 2px; }
+  .btn-github svg { width: 17px; height: 17px; fill: var(--text); }
+
+  .msg {
+    font-size: 13px;
+    padding: 10px 13px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    line-height: 1.5;
+    display: none;
+  }
+
+  .msg.show { display: block; }
+  .msg.error { background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.25); color: #FCA5A5; }
+  .msg.success { background: rgba(52, 211, 153, 0.1); border: 1px solid rgba(52, 211, 153, 0.25); color: #6EE7B7; }
+
+  .foot-note {
+    margin-top: 24px;
+    font-size: 12.5px;
+    color: var(--text-faint);
+    text-align: center;
+    line-height: 1.6;
+  }
+
+  .foot-note a { color: var(--purple-bright); text-decoration: none; }
+  .foot-note a:hover { text-decoration: underline; }
+
+  /* ---------- Dashboard (post-login) ---------- */
+
+  .dashboard { display: none; }
+  .dashboard.show { display: block; }
+  .auth-panels.hide { display: none; }
+
+  .session-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+  }
+
+  .avatar-dot {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--purple-bright), var(--purple-deep));
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 14px;
+    color: #fff;
+    flex-shrink: 0;
+  }
+
+  .session-info { flex: 1; min-width: 0; }
+  .session-info .email {
+    font-size: 13.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .session-info .status {
+    font-size: 12px;
+    color: var(--text-faint);
+    font-family: var(--font-mono);
+    margin-top: 2px;
+  }
+
+  .status.verified { color: var(--green); }
+
+  .link-signout {
+    background: none; border: none;
+    color: var(--text-faint);
+    font-size: 12.5px;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    flex-shrink: 0;
+  }
+  .link-signout:hover { color: var(--text-dim); }
+
+  .verify-note {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+    margin-bottom: 20px;
+    padding: 12px 14px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+  }
+
+  .token-box {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    color: var(--text-dim);
+    word-break: break-all;
+    margin-top: 10px;
+    display: none;
+  }
+  .token-box.show { display: block; }
+
+  @media (max-width: 979px) {
+    .auth-side { min-height: 100vh; padding: 48px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <!-- ============ LEFT: BRAND ============ -->
+  <div class="brand-side">
+    <div class="brand-mark">
+      <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#8B5CF6"/>
+            <stop offset="100%" stop-color="#6D28D9"/>
+          </linearGradient>
+        </defs>
+        <rect width="512" height="512" rx="112" fill="url(#g1)"/>
+        <path d="M 160 140 L 160 372 Q 160 388 176 388 L 216 388" fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 352 140 L 352 372 Q 352 388 336 388 L 296 388" fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M 256 168 L 256 300" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round"/>
+        <path d="M 200 248 L 256 306 L 312 248" fill="none" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="196" y="330" width="120" height="20" rx="10" fill="#FFFFFF"/>
+      </svg>
+      <span>Harhub</span>
+    </div>
+
+    <div class="brand-copy">
+      <h1>One account.<br>Your terminal <em>and</em> your browser.</h1>
+      <p>Sign in here, and the same identity works the moment you type <span style="font-family:var(--font-mono); color:var(--text);">harhub login</span> in Termux, your CI, or anywhere else Harhub runs.</p>
+
+      <div class="terminal">
+        <div class="terminal-bar">
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <div class="terminal-dot"></div>
+          <span class="label">termux — harhub</span>
+        </div>
+        <div class="terminal-body" id="termBody">
+          <div><span class="prompt">$</span> <span class="cmd">harhub login</span></div>
+          <div class="out">Email: dev@bakso-bangi.dev</div>
+          <div class="out">Password: ••••••••••</div>
+          <div><span class="ok">✓</span> <span class="out">logged in successfully</span></div>
+          <div style="margin-top:10px"><span class="prompt">$</span> <span class="cursor"></span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="brand-foot">harhub.dev · open source</div>
+  </div>
+
+  <!-- ============ RIGHT: AUTH ============ -->
+  <div class="auth-side">
+    <div class="auth-card">
+
+      <div class="mobile-brand">
+        <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#8B5CF6"/>
+              <stop offset="100%" stop-color="#6D28D9"/>
+            </linearGradient>
+          </defs>
+          <rect width="512" height="512" rx="112" fill="url(#g2)"/>
+          <path d="M 160 140 L 160 372 Q 160 388 176 388 L 216 388" fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 352 140 L 352 372 Q 352 388 336 388 L 296 388" fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 256 168 L 256 300" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round"/>
+          <path d="M 200 248 L 256 306 L 312 248" fill="none" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+          <rect x="196" y="330" width="120" height="20" rx="10" fill="#FFFFFF"/>
+        </svg>
+        <span>Harhub</span>
+      </div>
+
+      <!-- ---- Signed-out: tabs + forms ---- -->
+      <div class="auth-panels" id="authPanels">
+        <div class="auth-head">
+          <h2 id="headTitle">Welcome back</h2>
+          <p id="headSub">Sign in to manage your published apps.</p>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active" id="tabSignin" onclick="switchTab('signin')">Sign in</div>
+          <div class="tab" id="tabSignup" onclick="switchTab('signup')">Sign up</div>
+        </div>
+
+        <div class="msg" id="msgBox"></div>
+
+        <!-- Sign in form -->
+        <form id="formSignin" onsubmit="return handleSignin(event)">
+          <div class="field">
+            <label for="siEmail">Email</label>
+            <input type="email" id="siEmail" placeholder="you@example.com" required autocomplete="email">
+          </div>
+          <div class="field">
+            <label for="siPassword">Password</label>
+            <input type="password" id="siPassword" placeholder="••••••••" required autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn-primary" id="siSubmit">Sign in</button>
+        </form>
+
+        <!-- Sign up form -->
+        <form id="formSignup" style="display:none" onsubmit="return handleSignup(event)">
+          <div class="field">
+            <label for="suEmail">Email</label>
+            <input type="email" id="suEmail" placeholder="you@example.com" required autocomplete="email">
+          </div>
+          <div class="field">
+            <label for="suPassword">Password</label>
+            <input type="password" id="suPassword" placeholder="At least 8 characters" required minlength="8" autocomplete="new-password">
+          </div>
+          <button type="submit" class="btn-primary" id="suSubmit">Create account</button>
+        </form>
+
+        <div class="divider">or</div>
+
+        <button type="button" class="btn-github" onclick="handleGithub()">
+          <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          Continue with GitHub
+        </button>
+
+        <p class="foot-note" id="signinFoot">
+          New to Harhub? <a href="#" onclick="switchTab('signup'); return false;">Create an account</a>
+        </p>
+      </div>
+
+      <!-- ---- Signed-in: dashboard ---- -->
+      <div class="dashboard" id="dashboard">
+        <div class="auth-head">
+          <h2>Your account</h2>
+          <p>This identity works in the CLI and web equally.</p>
+        </div>
+
+        <div class="session-row">
+          <div class="avatar-dot" id="avatarDot">?</div>
+          <div class="session-info">
+            <div class="email" id="sessEmail">—</div>
+            <div class="status" id="sessStatus">checking developer profile…</div>
+          </div>
+          <button class="link-signout" onclick="handleSignout()">Sign out</button>
+        </div>
+
+        <div id="devLinkSection">
+          <div class="field">
+            <label for="ghUsername">GitHub username</label>
+            <input type="text" id="ghUsername" placeholder="e.g. hastagaming">
+          </div>
+          <button type="button" class="btn-primary" id="linkSubmit" onclick="handleLinkDeveloper()">Link developer profile</button>
+          <div class="verify-note" style="margin-top:16px">
+            Signed in with email/password links you as <strong>unverified</strong> — your apps publish as drafts. Continue with GitHub instead to verify ownership of your username automatically.
+          </div>
+        </div>
+
+        <div class="msg" id="dashMsg"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ---- Configuration ----
+  // Fill these in with your Harhub Supabase project's values. The anon
+  // key is safe to expose publicly — see docs/security.md.
+  const SUPABASE_URL = "https://hbhqlqogcbwuoizinbtj.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhiaHFscW9nY2J3dW9pemluYnRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1NDA3NjcsImV4cCI6MjEwMDExNjc2N30.kjSZXUOPfFO1kqrfr2FluK-8yWuhhvj541s23f1sAaY";
+
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  function switchTab(tab) {
+    const isSignin = tab === 'signin';
+    document.getElementById('tabSignin').classList.toggle('active', isSignin);
+    document.getElementById('tabSignup').classList.toggle('active', !isSignin);
+    document.getElementById('formSignin').style.display = isSignin ? 'block' : 'none';
+    document.getElementById('formSignup').style.display = isSignin ? 'none' : 'block';
+    document.getElementById('headTitle').textContent = isSignin ? 'Welcome back' : 'Create your account';
+    document.getElementById('headSub').textContent = isSignin
+      ? 'Sign in to manage your published apps.'
+      : 'Publish apps and pull binaries from any repo.';
+    document.getElementById('signinFoot').innerHTML = isSignin
+      ? 'New to Harhub? <a href="#" onclick="switchTab(\'signup\'); return false;">Create an account</a>'
+      : 'Already have an account? <a href="#" onclick="switchTab(\'signin\'); return false;">Sign in</a>';
+    hideMsg();
+  }
+
+  function showMsg(text, type) {
+    const box = document.getElementById('msgBox');
+    box.textContent = text;
+    box.className = 'msg show ' + type;
+  }
+  function hideMsg() {
+    document.getElementById('msgBox').className = 'msg';
+  }
+  function showDashMsg(text, type) {
+    const box = document.getElementById('dashMsg');
+    box.textContent = text;
+    box.className = 'msg show ' + type;
+  }
+
+  async function handleSignin(e) {
+    e.preventDefault();
+    hideMsg();
+    const btn = document.getElementById('siSubmit');
+    btn.disabled = true; btn.textContent = 'Signing in…';
+
+    const email = document.getElementById('siEmail').value;
+    const password = document.getElementById('siPassword').value;
+
+    const { error } = await client.auth.signInWithPassword({ email, password });
+
+    btn.disabled = false; btn.textContent = 'Sign in';
+
+    if (error) {
+      showMsg(error.message, 'error');
+      return false;
+    }
+    onAuthed();
+    return false;
+  }
+
+  async function handleSignup(e) {
+    e.preventDefault();
+    hideMsg();
+    const btn = document.getElementById('suSubmit');
+    btn.disabled = true; btn.textContent = 'Creating account…';
+
+    const email = document.getElementById('suEmail').value;
+    const password = document.getElementById('suPassword').value;
+
+    const { data, error } = await client.auth.signUp({ email, password });
+
+    btn.disabled = false; btn.textContent = 'Create account';
+
+    if (error) {
+      showMsg(error.message, 'error');
+      return false;
+    }
+    if (data.session) {
+      onAuthed();
+    } else {
+      showMsg('Check your email to confirm your account, then sign in.', 'success');
+      switchTab('signin');
+    }
+    return false;
+  }
+
+  async function handleGithub() {
+    hideMsg();
+    const { error } = await client.auth.signInWithOAuth({
+      provider: 'github',
+      options: { redirectTo: window.location.href }
+    });
+    if (error) showMsg(error.message, 'error');
+  }
+
+  async function handleSignout() {
+    await client.auth.signOut();
+    document.getElementById('authPanels').classList.remove('hide');
+    document.getElementById('dashboard').classList.remove('show');
+  }
+
+  async function handleLinkDeveloper() {
+    hideMsg();
+    const btn = document.getElementById('linkSubmit');
+    const username = document.getElementById('ghUsername').value.trim();
+    if (!username) {
+      showDashMsg('Enter your GitHub username first.', 'error');
+      return;
+    }
+    btn.disabled = true; btn.textContent = 'Linking…';
+
+    const { data: { session } } = await client.auth.getSession();
+
+    try {
+      const resp = await fetch(`${SUPABASE_URL}/functions/v1/register-developer`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ github_username: username }),
+      });
+      const result = await resp.json();
+
+      btn.disabled = false; btn.textContent = 'Link developer profile';
+
+      if (!resp.ok) {
+        showDashMsg(result.error || 'Failed to link developer profile.', 'error');
+        return;
+      }
+
+      showDashMsg(result.message, result.verified ? 'success' : 'error');
+      refreshDeveloperStatus();
+    } catch (err) {
+      btn.disabled = false; btn.textContent = 'Link developer profile';
+      showDashMsg('Network error — try again.', 'error');
+    }
+  }
+
+  async function refreshDeveloperStatus() {
+    const { data: { session } } = await client.auth.getSession();
+    if (!session) return;
+
+    const { data: developer } = await client
+      .from('developers')
+      .select('github_username, verified')
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+
+    const statusEl = document.getElementById('sessStatus');
+    if (developer) {
+      statusEl.innerHTML = developer.verified
+        ? `<span class="verified">✓ verified as ${developer.github_username}</span>`
+        : `unverified · linked to ${developer.github_username}`;
+      document.getElementById('ghUsername').value = developer.github_username;
+    } else {
+      statusEl.textContent = 'no developer profile linked yet';
+    }
+  }
+
+  async function onAuthed() {
+    const { data: { session } } = await client.auth.getSession();
+    if (!session) return;
+
+    document.getElementById('authPanels').classList.add('hide');
+    document.getElementById('dashboard').classList.add('show');
+    document.getElementById('sessEmail').textContent = session.user.email || session.user.user_metadata?.user_name || 'signed in';
+    document.getElementById('avatarDot').textContent = (session.user.email || 'U')[0].toUpperCase();
+
+    // If they signed in via GitHub OAuth, auto-fill and auto-link.
+    const ghIdentity = session.user.identities?.find(i => i.provider === 'github');
+    if (ghIdentity) {
+      const ghUsername = ghIdentity.identity_data?.user_name;
+      if (ghUsername) {
+        document.getElementById('ghUsername').value = ghUsername;
+      }
+    }
+
+    refreshDeveloperStatus();
+  }
+
+  // Restore session on page load (handles GitHub OAuth redirect too)
+  client.auth.getSession().then(({ data: { session } }) => {
+    if (session) onAuthed();
+  });
+
+  client.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_IN' && session) onAuthed();
+  });
+</script>
+
+</body>
+</html>
