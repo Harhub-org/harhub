@@ -25,9 +25,9 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from utils.hashing_stream import sha256_of_url
-from utils.platform_detect import detect_platform_and_arch
-from utils.branch_mirror import mirror_release_to_branch
+from utils.hashing_stream import sha256_of_url # noqa: E402
+from utils.platform_detect import detect_platform_and_arch # noqa: E402
+from utils.branch_mirror import mirror_release_to_branch # noqa: E402
 
 GITHUB_API = "https://api.github.com"
 
