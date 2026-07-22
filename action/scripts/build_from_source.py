@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from utils.notify import notify_publish
 from utils.branch_mirror import mirror_local_assets_to_branch
 from utils.build_config import load_command_override
 from utils.build_systems import (
@@ -200,6 +201,16 @@ def main() -> None:
                 "public_url": asset_urls[asset["file_name"]],
             },
             conflict="release_id,file_name",
+            notify_publish(
+                    supabase_url=env("SUPABASE_URL"),
+                    service_key=env("SUPABASE_SERVICE_KEY"),
+                    developer_id=developer["id"],
+                    app_name=repo,
+                    app_slug=app_slug,
+                    version=version,
+                    source="build",
+                    asset_urls=asset_urls,
+            ),
         )
 
     print(f"Built ({build_system.name}) and published {target_url} @ {version} → branch '{branch}' ({len(prepared_assets)} asset(s)).")

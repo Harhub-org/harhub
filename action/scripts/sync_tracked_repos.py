@@ -20,6 +20,7 @@ from pathlib import Path
 import requests
 
 sys.path.insert(0, str(Path(__file__).parent))
+from utils.notify import notify_publish
 from utils.hashing_stream import sha256_of_url
 from utils.platform_detect import detect_platform_and_arch
 from utils.branch_mirror import mirror_release_to_branch
@@ -201,6 +202,16 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
                 "public_url": asset_urls[asset["file_name"]],
             },
             conflict="release_id,file_name",
+            notify_publish(
+                    supabase_url=env("SUPABASE_URL"),
+                    service_key=env("SUPABASE_SERVICE_KEY"),
+                    developer_id=developer["id"],
+                    app_name=repo,
+                    app_slug=slug,
+                    version=version,
+                    source="sync",
+                    asset_urls=asset_urls,
+            ),
         )
 
     print(f"[ok] {owner}/{repo}: synced {version} into branch '{branch}' ({len(prepared_assets)} assets)")

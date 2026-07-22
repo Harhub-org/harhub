@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from utils.notify import notify_publish
 from utils.hashing_stream import sha256_of_url
 from utils.platform_detect import detect_platform_and_arch
 from utils.branch_mirror import mirror_release_to_branch
@@ -166,6 +167,16 @@ def main() -> None:
                 "public_url": asset_urls[asset["file_name"]],
             },
             conflict="release_id,file_name",
+            notify_publish(
+                    supabase_url=env("SUPABASE_URL"),
+                    service_key=env("SUPABASE_SERVICE_KEY"),
+                    developer_id=developer["id"],
+                    app_name=repo,
+                    app_slug=app_slug,
+                    version=version,
+                    source="manual",
+                    asset_urls=asset_urls,
+            ),
         )
 
     print(f"Published {target_url} {version} → branch '{branch}' ({len(prepared_assets)} assets).")
