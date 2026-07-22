@@ -190,28 +190,29 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
     )
 
     for asset in prepared_assets:
-        db.upsert(
-            "assets",
-            {
-                "release_id": release_row["id"],
-                "file_name": asset["file_name"],
-                "platform": asset["platform"],
-                "arch": asset["arch"],
-                "size_bytes": asset["size_bytes"],
-                "sha256": asset["sha256"],
-                "public_url": asset_urls[asset["file_name"]],
-            },
-            conflict="release_id,file_name",
-            notify_publish(
-                    supabase_url=env("SUPABASE_URL"),
-                    service_key=env("SUPABASE_SERVICE_KEY"),
-                    developer_id=developer["id"],
-                    app_name=repo,
-                    app_slug=slug,
-                    version=version,
-                    source="sync",
-                    asset_urls=asset_urls,
-            ),
+            db.upsert(
+                "assets",
+                {
+                    "release_id": release_row["id"],
+                    "file_name": asset["file_name"],
+                    "platform": asset["platform"],
+                    "arch": asset["arch"],
+                    "size_bytes": asset["size_bytes"],
+                    "sha256": asset["sha256"],
+                    "public_url": asset_urls[asset["file_name"]],
+                },
+                conflict="release_id,file_name",
+            )
+
+        notify_publish(
+                supabase_url=env("SUPABASE_URL"),
+                service_key=env("SUPABASE_SERVICE_KEY"),
+                developer_id=developer["id"],
+                app_name=repo,
+                app_slug=slug,
+                version=version,
+                source="sync",
+                asset_urls=asset_urls,
         )
 
     print(f"[ok] {owner}/{repo}: synced {version} into branch '{branch}' ({len(prepared_assets)} assets)")
