@@ -8,6 +8,12 @@ const SIGNED_URL_TTL_SECONDS = 300;
 const RATE_LIMIT_MAX = 10;
 const RATE_LIMIT_WINDOW_MINUTES = 5;
 
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { persistSession: false },
 });
@@ -15,7 +21,14 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 function jsonError(message: string, status: number): Response {
   return new Response(JSON.stringify({ error: message }), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
+  });
+}
+
+function jsonOk(body: Record<string, unknown>): Response {
+  return new Response(JSON.stringify(body), {
+    status: 200,
+    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
   });
 }
 
@@ -35,6 +48,14 @@ Deno.serve(async (req) => {
 
   if (!appSlug || !fileName) {
     return jsonError("Missing required query params: app, file", 400);
+  }
+
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: CORS_HEADERS });
+  }
+
+  if (req.method !== "POST") {
+    return jsonError("Method not allowed", 405);
   }
 
   const { data: app, error: appError } = await supabase

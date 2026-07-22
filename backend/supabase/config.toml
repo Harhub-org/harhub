@@ -17,8 +17,8 @@ port = 54323
 
 [auth]
 enabled = true
-site_url = "https://harhub.dev"
-additional_redirect_urls = ["https://harhub.dev/auth/callback"]
+site_url = "https://harhub-org.github.io/harhub/"
+additional_redirect_urls = ["https://hbhqlqogcbwuoizinbtj.supabase.co/auth/v1/callback"]
 jwt_expiry = 3600
 enable_signup = true
 
