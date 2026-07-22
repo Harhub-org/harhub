@@ -5,6 +5,7 @@ branch = "acp-downloads"
 visibility = "public"
 module_path = ""
 build_system = "auto"
+version = ""
 
 [[repos]]
 url = "https://github.com/hastagaming/brewer"
@@ -13,3 +14,4 @@ branch = "brewer-downloads"
 visibility = "public"
 module_path = ""
 build_system = "auto"
+version = ""
