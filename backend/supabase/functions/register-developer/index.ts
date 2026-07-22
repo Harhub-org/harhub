@@ -1,25 +1,9 @@
-// backend/supabase/functions/register-developer/index.ts
-//
-// POST /functions/v1/register-developer
-// Authorization: Bearer <user's JWT, from a normal email/password or
-// GitHub OAuth sign-up via supabase.auth>
-//
-// Body:
-// { "github_username": "hastagaming", "bio": "...", "website_url": "..." }
-//
-// If the caller signed in via GitHub OAuth (Supabase Auth "github"
-// provider), their verified GitHub username is read from the JWT's
-// identity data and MUST match the submitted github_username — this
-// is what prevents someone from claiming a GitHub username they don't
-// own. If the caller signed in via email/password, registration is
-// still allowed but the profile is marked unverified until they link
-// GitHub via OAuth later.
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -44,7 +28,6 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: CORS_HEADERS });
   }
-
   if (req.method !== "POST") {
     return jsonError("Method not allowed", 405);
   }
@@ -77,8 +60,6 @@ Deno.serve(async (req) => {
     return jsonError("A valid github_username is required", 400);
   }
 
-  // Check whether this session came from GitHub OAuth, and if so,
-  // extract the verified GitHub login from the identity data.
   const githubIdentity = user.identities?.find((i) => i.provider === "github");
   const verifiedGithubLogin = githubIdentity?.identity_data?.user_name as string | undefined;
 
@@ -93,7 +74,6 @@ Deno.serve(async (req) => {
 
   const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, { auth: { persistSession: false } });
 
-  // Ensure a public.users row exists (mirrors auth.users on first login).
   await admin.from("users").upsert(
     {
       id: user.id,
@@ -110,30 +90,50 @@ Deno.serve(async (req) => {
     .neq("role", "admin")
     .neq("role", "moderator");
 
+  const { data: placeholder } = await admin
+    .from("developers")
+    .select("id, user_id")
+    .eq("github_username", body.github_username)
+    .is("user_id", null)
+    .maybeSingle();
+
   const { data: existing } = await admin
     .from("developers")
     .select("id, user_id")
     .eq("github_username", body.github_username)
+    .not("user_id", "is", null)
     .maybeSingle();
 
   if (existing && existing.user_id !== user.id) {
     return jsonError(`GitHub username '${body.github_username}' is already linked to another account.`, 409);
   }
 
-  const { data: developer, error: upsertError } = await admin
-    .from("developers")
-    .upsert(
-      {
-        user_id: user.id,
-        github_username: body.github_username,
-        bio: body.bio ?? null,
-        website_url: body.website_url ?? null,
-        verified,
-      },
-      { onConflict: "user_id" },
-    )
-    .select()
-    .single();
+  const { data: developer, error: upsertError } = placeholder
+    ? await admin
+        .from("developers")
+        .update({
+          user_id: user.id,
+          bio: body.bio ?? null,
+          website_url: body.website_url ?? null,
+          verified,
+        })
+        .eq("id", placeholder.id)
+        .select()
+        .single()
+    : await admin
+        .from("developers")
+        .upsert(
+          {
+            user_id: user.id,
+            github_username: body.github_username,
+            bio: body.bio ?? null,
+            website_url: body.website_url ?? null,
+            verified,
+          },
+          { onConflict: "user_id" },
+        )
+        .select()
+        .single();
 
   if (upsertError || !developer) {
     return jsonError(`Failed to register developer profile: ${upsertError?.message}`, 500);

@@ -1,5 +1,3 @@
-// backend/supabase/functions/sign-download/index.ts
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -11,7 +9,7 @@ const RATE_LIMIT_WINDOW_MINUTES = 5;
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
 };
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
@@ -25,13 +23,6 @@ function jsonError(message: string, status: number): Response {
   });
 }
 
-function jsonOk(body: Record<string, unknown>): Response {
-  return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
-  });
-}
-
 async function hashIp(ip: string): Promise<string> {
   const data = new TextEncoder().encode(ip);
   const digest = await crypto.subtle.digest("SHA-256", data);
@@ -41,6 +32,10 @@ async function hashIp(ip: string): Promise<string> {
 }
 
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: CORS_HEADERS });
+  }
+
   const url = new URL(req.url);
   const appSlug = url.searchParams.get("app");
   const fileName = url.searchParams.get("file");
@@ -48,14 +43,6 @@ Deno.serve(async (req) => {
 
   if (!appSlug || !fileName) {
     return jsonError("Missing required query params: app, file", 400);
-  }
-
-  if (req.method === "OPTIONS") {
-    return new Response(null, { headers: CORS_HEADERS });
-  }
-
-  if (req.method !== "POST") {
-    return jsonError("Method not allowed", 405);
   }
 
   const { data: app, error: appError } = await supabase
@@ -150,6 +137,6 @@ Deno.serve(async (req) => {
 
   return new Response(null, {
     status: 302,
-    headers: { Location: signed.signedUrl },
+    headers: { Location: signed.signedUrl, ...CORS_HEADERS },
   });
 });

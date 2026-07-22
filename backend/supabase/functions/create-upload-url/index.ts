@@ -1,22 +1,10 @@
-// backend/supabase/functions/create-upload-url/index.ts
-//
-// POST /functions/v1/create-upload-url
-// Authorization: Bearer <developer's JWT>
-//
-// Body: { "app_slug": "myapp", "file_name": "myapp-linux-x86_64" }
-//
-// Returns a short-lived Signed Upload URL for private-apps/{app_id}/{file_name}.
-// The caller PUTs their binary directly to that URL, then calls
-// publish-release with the same storage_path to record metadata.
-// This keeps the (potentially large) binary transfer off this
-// function entirely — it only ever issues a URL.
-
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY")!;
 const SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const UPLOAD_URL_TTL_SECONDS = 600; // 10 minutes to complete the upload
+const UPLOAD_URL_TTL_SECONDS = 600;
+
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -30,21 +18,11 @@ function jsonError(message: string, status: number): Response {
   });
 }
 
-function jsonOk(body: Record<string, unknown>): Response {
-  return new Response(JSON.stringify(body), {
-    status: 200,
-    headers: { "Content-Type": "application/json", ...CORS_HEADERS },
-  });
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: CORS_HEADERS });
   }
-
-  if (req.method !== "POST") {
-    return jsonError("Method not allowed", 405);
-  }
+  if (req.method !== "POST") return jsonError("Method not allowed", 405);
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return jsonError("Missing Authorization header", 401);
@@ -84,8 +62,6 @@ Deno.serve(async (req) => {
     return jsonError("Your developer profile must be GitHub-verified before uploading proprietary binaries", 403);
   }
 
-  // App must exist and be owned by this developer (RLS via callerClient
-  // enforces this naturally — if it's not visible/owned, this returns null).
   const { data: app } = await callerClient
     .from("apps")
     .select("id, developer_id, visibility")
@@ -116,6 +92,6 @@ Deno.serve(async (req) => {
       storage_path: storagePath,
       expires_in_seconds: UPLOAD_URL_TTL_SECONDS,
     }),
-    { status: 200, headers: { "Content-Type": "application/json" } },
+    { status: 200, headers: { "Content-Type": "application/json", ...CORS_HEADERS } },
   );
 });
