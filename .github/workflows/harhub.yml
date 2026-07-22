@@ -5,19 +5,19 @@ name: Harhub Publish
 on:
   workflow_dispatch:
     inputs:
-      repo:
+      repo: "https://github.com/hastagaming/webapps
         description: "Target repo URL, e.g. https://github.com/owner/repo"
         required: true
-      app_slug:
+      app_slug: webapps
         description: "App slug to register/update in Harhub"
         required: true
       branch:
         description: "Branch name to mirror binaries into (defaults to '<app_slug>-downloads')"
-        required: false
+        required: true
         default: ""
       visibility:
         description: "public or proprietary"
-        required: false
+        required: true
         default: "public"
 
 permissions:
