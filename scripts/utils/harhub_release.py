@@ -7,8 +7,10 @@ to this repo) — NOT HARHUB_READ_TOKEN, which is read-only and scoped to
 reading other people's repos.
 """
 
-import requests
+import tempfile
 from pathlib import Path
+
+import requests
 
 GITHUB_API = "https://api.github.com"
 HARHUB_REPO = "hastagaming/harhub"
@@ -58,6 +60,28 @@ def upload_release_asset(token: str, release: dict, local_path, file_name: str) 
     resp.raise_for_status()
     return resp.json()["browser_download_url"]
 
+
+def publish_to_harhub_release(
+    token: str,
+    app_slug: str,
+    version: str,
+    assets: list[dict],
+) -> dict[str, str]:
+    """assets: list of dicts each with 'file_name' and 'local_path' (a
+    Path to an already-downloaded/built file) — returns
+    {file_name: browser_download_url} from the Harhub repo's own Release.
+    """
+    tag_name = f"{app_slug}-{version}"
+    release = ensure_harhub_release(token, tag_name, f"{app_slug} {version}")
+
+    urls = {}
+    for asset in assets:
+        url = upload_release_asset(token, release, asset["local_path"], asset["file_name"])
+        urls[asset["file_name"]] = url
+
+    return urls
+
+
 def download_then_upload_to_release(
     token: str,
     app_slug: str,
@@ -86,26 +110,5 @@ def download_then_upload_to_release(
 
             url = upload_release_asset(token, release, local_path, file_name)
             urls[file_name] = url
-
-    return urls
-
-
-def publish_to_harhub_release(
-    token: str,
-    app_slug: str,
-    version: str,
-    assets: list[dict],
-) -> dict[str, str]:
-    """assets: list of dicts each with 'file_name' and either 'local_path'
-    (a Path to an already-downloaded/built file) — returns
-    {file_name: browser_download_url} from the Harhub repo's own Release.
-    """
-    tag_name = f"{app_slug}-{version}"
-    release = ensure_harhub_release(token, tag_name, f"{app_slug} {version}")
-
-    urls = {}
-    for asset in assets:
-        url = upload_release_asset(token, release, asset["local_path"], asset["file_name"])
-        urls[asset["file_name"]] = url
 
     return urls

@@ -1,36 +1,32 @@
 """Harhub on-demand publish job — triggered manually via workflow_dispatch
-in the official Harhub repo. Given a target repo URL, fetches its latest
-GitHub Release and mirrors the assets into a dedicated branch in the
-Harhub repo itself, using the same mechanism as the scheduled sync job
-(scripts/sync_tracked_repos.py).
+in the official Harhub repo. Resolves repo/branch/visibility/version from
+config/tracked-repos.toml by app_slug, fetches the (pinned or latest)
+GitHub Release, and mirrors the assets into a dedicated branch AND the
+Harhub repo's own Releases tab.
 """
 
 import os
 import sys
 from pathlib import Path
-from urllib.parse import urlparse
 
 import requests
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-from utils.notify import notify_publish
-from utils.hashing_stream import sha256_of_url
-from utils.platform_detect import detect_platform_and_arch
-from utils.branch_mirror import mirror_release_to_branch
+SCRIPT_DIR = Path(__file__).resolve().parent
+if str(SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(SCRIPT_DIR))
+
+from utils.hashing_stream import sha256_of_url  # noqa: E402
+from utils.platform_detect import detect_platform_and_arch  # noqa: E402
+from utils.notify import notify_publish  # noqa: E402
+from utils.branch_mirror import mirror_release_to_branch  # noqa: E402
+from utils.harhub_release import download_then_upload_to_release  # noqa: E402
+from utils.tracked_repos import find_tracked_repo  # noqa: E402
 
 GITHUB_API = "https://api.github.com"
 
 
 def env(name: str, default: str = "") -> str:
     return os.environ.get(name, default)
-
-
-def _parse_repo_url(url: str) -> tuple[str, str]:
-    path = urlparse(url).path.strip("/")
-    parts = path.removesuffix(".git").split("/")
-    if len(parts) < 2:
-        raise ValueError(f"Invalid GitHub repo URL: {url}")
-    return parts[0], parts[1]
 
 
 def github_headers(token: str) -> dict:
@@ -45,6 +41,7 @@ def fetch_latest_release(owner: str, repo: str, token: str) -> dict:
     resp = requests.get(url, headers=github_headers(token), timeout=30)
     resp.raise_for_status()
     return resp.json()
+
 
 def fetch_release_by_tag(owner: str, repo: str, tag: str, token: str) -> dict:
     url = f"{GITHUB_API}/repos/{owner}/{repo}/releases/tags/{tag}"
@@ -84,12 +81,18 @@ class SupabaseAdmin:
 
 
 def main() -> None:
-    target_url = env("TARGET_REPO")
-    owner, repo = _parse_repo_url(target_url)
-
     app_slug = env("TARGET_APP_SLUG")
-    branch = env("TARGET_BRANCH").strip() or f"{app_slug}-downloads"
-    visibility = env("TARGET_VISIBILITY", "public")
+
+    tracked = find_tracked_repo(app_slug)
+    if tracked is None:
+        raise RuntimeError(
+            f"app_slug '{app_slug}' has no matching entry in config/tracked-repos.toml — add one before running this pipeline."
+        )
+
+    target_url = tracked["url"]
+    owner, repo = tracked["owner"], tracked["repo"]
+    branch = tracked["branch"]
+    visibility = tracked["visibility"]
     token = env("GITHUB_TOKEN")
 
     db = SupabaseAdmin(env("SUPABASE_URL"), env("SUPABASE_SERVICE_KEY"))
@@ -103,7 +106,7 @@ def main() -> None:
             conflict="github_username",
         )
 
-    pinned_version = tracked.get("version", "").strip() if tracked else ""
+    pinned_version = tracked.get("version", "").strip()
     release = (
         fetch_release_by_tag(owner, repo, pinned_version, token)
         if pinned_version
@@ -112,7 +115,7 @@ def main() -> None:
     version = release["tag_name"]
     raw_assets = release.get("assets", [])
     if not raw_assets:
-        print(f"{target_url}: latest release {version} has no binary assets — nothing to publish.")
+        print(f"{target_url}: release {version} has no binary assets — nothing to publish.")
         return
 
     prepared_assets = []
@@ -139,6 +142,16 @@ def main() -> None:
         github_token=token,
         version=version,
     )
+
+    harhub_token = env("HARHUB_REPO_TOKEN")
+    if harhub_token:
+        download_then_upload_to_release(
+            token=harhub_token,
+            app_slug=app_slug,
+            version=version,
+            assets=prepared_assets,
+            github_download_headers=github_headers(token),
+        )
 
     app_status = "published" if developer.get("verified") else "draft"
     if app_status == "draft":

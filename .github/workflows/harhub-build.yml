@@ -20,37 +20,19 @@ jobs:
           fetch-depth: 0
           path: harhub
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Harhub script dependencies
+        working-directory: harhub
+        run: pip install --quiet -r scripts/requirements.txt
+
       - name: Resolve repo from config/tracked-repos.toml
         id: resolve
         working-directory: harhub
-        run: |
-          REPO_URL=$(python3 -c "
-          import tomllib
-          with open('config/tracked-repos.toml', 'rb') as f:
-              data = tomllib.load(f)
-          match = next((r['url'] for r in data.get('repos', []) if r['app_slug'] == '${{ inputs.app_slug }}'), '')
-          print(match)
-          ")
-          if [ -z "$REPO_URL" ]; then
-            echo "::error::app_slug '${{ inputs.app_slug }}' has no matching entry in config/tracked-repos.toml — add one before running this workflow."
-            exit 1
-          fi
-          echo "repo=$REPO_URL" >> "$GITHUB_OUTPUT"
-
-      - name: Resolve repo (and pinned version) from config/tracked-repos.toml
-        id: resolve
-        working-directory: harhub
-        run: |
-          python3 -c "
-          import tomllib
-          with open('config/tracked-repos.toml', 'rb') as f:
-              data = tomllib.load(f)
-          entry = next((r for r in data.get('repos', []) if r['app_slug'] == '${{ inputs.app_slug }}'), None)
-          if entry is None:
-              raise SystemExit(\"app_slug not found in config/tracked-repos.toml\")
-          print(f\"repo={entry['url']}\")
-          print(f\"pinned_version={entry.get('version', '')}\")
-          " >> "$GITHUB_OUTPUT"
+        run: python scripts/resolve_repo.py "${{ inputs.app_slug }}"
 
       - name: Checkout target repo
         uses: actions/checkout@v4
@@ -79,22 +61,13 @@ jobs:
         with:
           node-version: "20"
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-
-      - name: Install Harhub script dependencies
-        working-directory: harhub
-        run: pip install --quiet -r scripts/requirements.txt
-
       - name: Run Harhub build + publish
         working-directory: harhub
         env:
           GITHUB_TOKEN: ${{ secrets.HARHUB_READ_TOKEN }}
+          HARHUB_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           TARGET_APP_SLUG: ${{ inputs.app_slug }}
           TARGET_REPO_DIR: ${{ github.workspace }}/target-repo
-          HARHUB_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python scripts/build_from_source.py

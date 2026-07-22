@@ -1,23 +1,18 @@
 """Harhub central sync job.
 
-For each entry in config/tracked-repos.toml (using `url` fields, e.g.
-"https://github.com/owner/repo"):
-  1. Fetch the latest GitHub Release for that repo.
+For each entry in config/tracked-repos.toml:
+  1. Fetch the (pinned or latest) GitHub Release for that repo.
   2. Skip if we've already synced this exact tag (tracked in Supabase).
   3. Hash + detect platform for each asset.
-  4. Mirror the assets into that repo's dedicated branch (per `branch`
-     field in tracked-repos.toml) at the Harhub repo's root — always
-     overwriting with the latest release's files, original filenames
-     kept as-is (e.g. app-arm64.apk).
+  4. Mirror the assets into that repo's dedicated branch AND the Harhub
+     repo's own Releases tab.
   5. Upsert app/release/asset rows in Supabase pointing at the mirrored
      raw.githubusercontent.com URLs.
 """
 
 import os
 import sys
-import tomllib
 from pathlib import Path
-from urllib.parse import urlparse
 
 import requests
 
@@ -25,10 +20,12 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from utils.tracked_repos import load_all_tracked_repos
-from utils.hashing_stream import sha256_of_url # noqa: E402
-from utils.platform_detect import detect_platform_and_arch # noqa: E402
-from utils.branch_mirror import mirror_release_to_branch # noqa: E402
+from utils.tracked_repos import load_all_tracked_repos  # noqa: E402
+from utils.hashing_stream import sha256_of_url  # noqa: E402
+from utils.platform_detect import detect_platform_and_arch  # noqa: E402
+from utils.branch_mirror import mirror_release_to_branch  # noqa: E402
+from utils.harhub_release import download_then_upload_to_release  # noqa: E402
+from utils.notify import notify_publish  # noqa: E402
 
 GITHUB_API = "https://api.github.com"
 
@@ -62,9 +59,12 @@ def fetch_latest_release(owner: str, repo: str, token: str) -> dict | None:
     resp.raise_for_status()
     return resp.json()
 
-def fetch_release_by_tag(owner: str, repo: str, tag: str, token: str) -> dict:
+
+def fetch_release_by_tag(owner: str, repo: str, tag: str, token: str) -> dict | None:
     url = f"{GITHUB_API}/repos/{owner}/{repo}/releases/tags/{tag}"
     resp = requests.get(url, headers=github_headers(token), timeout=30)
+    if resp.status_code == 404:
+        return None
     resp.raise_for_status()
     return resp.json()
 
@@ -99,7 +99,7 @@ class SupabaseAdmin:
         return rows[0] if rows else None
 
 
-def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: Path) -> None:
+def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: Path, harhub_token: str) -> None:
     owner = entry["owner"]
     repo = entry["repo"]
     slug = entry["app_slug"]
@@ -119,7 +119,7 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
     version = release["tag_name"]
     raw_assets = release.get("assets", [])
     if not raw_assets:
-        print(f"[skip] {owner}/{repo}: latest release {version} has no binary assets")
+        print(f"[skip] {owner}/{repo}: release {version} has no binary assets")
         return
 
     developer = db.select_one("developers", {"github_username": owner})
@@ -179,7 +179,6 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
         version=version,
     )
 
-    harhub_token = env("HARHUB_REPO_TOKEN")
     if harhub_token:
         download_then_upload_to_release(
             token=harhub_token,
@@ -210,11 +209,23 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
             conflict="release_id,file_name",
         )
 
+    notify_publish(
+        supabase_url=env("SUPABASE_URL"),
+        service_key=env("SUPABASE_SERVICE_KEY"),
+        developer_id=developer["id"],
+        app_name=repo,
+        app_slug=slug,
+        version=version,
+        source="sync",
+        asset_urls=asset_urls,
+    )
+
     print(f"[ok] {owner}/{repo}: synced {version} into branch '{branch}' ({len(prepared_assets)} assets)")
 
 
 def main() -> None:
     token = env("GITHUB_TOKEN")
+    harhub_token = env("HARHUB_REPO_TOKEN")
     db = SupabaseAdmin(env("SUPABASE_URL"), env("SUPABASE_SERVICE_KEY"))
     repos = load_tracked_repos()
     harhub_repo_dir = Path(".").resolve()
@@ -225,7 +236,7 @@ def main() -> None:
 
     for entry in repos:
         try:
-            sync_one_repo(entry, token, db, harhub_repo_dir)
+            sync_one_repo(entry, token, db, harhub_repo_dir, harhub_token)
         except Exception as exc:
             print(f"[error] {entry['owner']}/{entry['repo']}: {exc}", file=sys.stderr)
 
