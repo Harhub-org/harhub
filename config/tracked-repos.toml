@@ -1,7 +1,7 @@
 # only examples
 
 [[repos]]
-owner = "hastagaming"
+url = "https://github.com/hastagaming/acp"
 repo = "acp"
 app_slug = "acp"
 branch = "acp-downloads"
