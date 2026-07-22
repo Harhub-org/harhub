@@ -116,8 +116,8 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
     owner = entry["owner"]
     repo = entry["repo"]
     slug = entry["app_slug"]
-    branch = entry.get("branch", f"{slug}-downloads")
-    visibility = entry.get("visibility", "public")
+    branch = entry["branch"]
+    visibility = entry["visibility"]
 
     release = fetch_latest_release(owner, repo, token)
     if release is None:
@@ -132,8 +132,12 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
 
     developer = db.select_one("developers", {"github_username": owner})
     if developer is None:
-        print(f"[skip] {owner}/{repo}: no developer profile for '{owner}' yet — register first")
-        return
+        print(f"[auto] no developer profile for '{owner}' — creating an unverified placeholder")
+        developer = db.upsert(
+            "developers",
+            {"github_username": owner, "verified": False},
+            conflict="github_username",
+        )
 
     app_status = "published" if developer.get("verified") else "draft"
     if app_status == "draft":
@@ -190,33 +194,32 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
     )
 
     for asset in prepared_assets:
-            db.upsert(
-                "assets",
-                {
-                    "release_id": release_row["id"],
-                    "file_name": asset["file_name"],
-                    "platform": asset["platform"],
-                    "arch": asset["arch"],
-                    "size_bytes": asset["size_bytes"],
-                    "sha256": asset["sha256"],
-                    "public_url": asset_urls[asset["file_name"]],
-                },
-                conflict="release_id,file_name",
-            )
-
-        notify_publish(
-                supabase_url=env("SUPABASE_URL"),
-                service_key=env("SUPABASE_SERVICE_KEY"),
-                developer_id=developer["id"],
-                app_name=repo,
-                app_slug=slug,
-                version=version,
-                source="sync",
-                asset_urls=asset_urls,
+        db.upsert(
+            "assets",
+            {
+                "release_id": release_row["id"],
+                "file_name": asset["file_name"],
+                "platform": asset["platform"],
+                "arch": asset["arch"],
+                "size_bytes": asset["size_bytes"],
+                "sha256": asset["sha256"],
+                "public_url": asset_urls[asset["file_name"]],
+            },
+            conflict="release_id,file_name",
         )
 
-    print(f"[ok] {owner}/{repo}: synced {version} into branch '{branch}' ({len(prepared_assets)} assets)")
+    notify_publish(
+        supabase_url=env("SUPABASE_URL"),
+        service_key=env("SUPABASE_SERVICE_KEY"),
+        developer_id=developer["id"],
+        app_name=repo,
+        app_slug=slug,
+        version=version,
+        source="sync",
+        asset_urls=asset_urls,
+    )
 
+    print(f"[ok] {owner}/{repo}: synced {version} into branch '{branch}' ({len(prepared_assets)} assets)")
 
 def main() -> None:
     token = env("GITHUB_TOKEN")
