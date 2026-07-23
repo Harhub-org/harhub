@@ -7,7 +7,7 @@
 app_slug = "acp"
 build_system = "make"
 build_command = "make clean && make CC=gcc CFLAGS='-Wall -Wextra -Werror -O2 -std=c11'"
-output_path = "build/acp"
+output_path = "acp"
 
 [[commands]]
 app_slug = "weird-cpp-tool"
