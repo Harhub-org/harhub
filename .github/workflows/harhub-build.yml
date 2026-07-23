@@ -65,7 +65,7 @@ jobs:
         working-directory: harhub
         env:
           GITHUB_TOKEN: ${{ secrets.HARHUB_READ_TOKEN }}
-          HARHUB_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HARHUB_REPO_TOKEN: ${{ secrets.HARHUB_RELEASES_TOKEN }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           TARGET_APP_SLUG: ${{ inputs.app_slug }}

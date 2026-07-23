@@ -1,19 +1,25 @@
-"""Publishes assets to a GitHub Release on the Harhub repo itself —
-runs alongside the branch mirror so every publish path (manual, build,
-sync) ends up both in a branch AND in the Releases tab.
-
-Uses the repo's own GITHUB_TOKEN (Actions' built-in token, write-scoped
-to this repo) — NOT HARHUB_READ_TOKEN, which is read-only and scoped to
-reading other people's repos.
+"""Publishes assets to a GitHub Release on a DEDICATED releases repo
+(not the main Harhub repo) — keeps the main repo's Releases tab and UI
+clean, since every publish (manual, build, sync) would otherwise create
+a new release there.
 """
 
+import os
 import tempfile
 from pathlib import Path
 
 import requests
 
+from utils.hashing_stream import sha256_of_url
+
 GITHUB_API = "https://api.github.com"
-HARHUB_REPO = "hastagaming/harhub"
+
+# Dedicated repo that only holds auto-generated release archives — keeps
+# the main harhub repo's UI clean. Override via env if the repo is ever
+# renamed/moved.
+HARHUB_RELEASES_REPO = os.environ.get("HARHUB_RELEASES_REPO", "harhub-org/harhub-releases")
+
+BOT_MARKER = "<!-- harhub-bot:managed -->"
 
 
 def _headers(token: str) -> dict:
@@ -21,21 +27,26 @@ def _headers(token: str) -> dict:
 
 
 def ensure_harhub_release(token: str, tag_name: str, release_name: str) -> dict:
-    """Gets or creates a GitHub Release on the Harhub repo, tagged
-    '{app_slug}-{version}' so multiple apps' releases don't collide.
-    """
-    get_url = f"{GITHUB_API}/repos/{HARHUB_REPO}/releases/tags/{tag_name}"
+    get_url = f"{GITHUB_API}/repos/{HARHUB_RELEASES_REPO}/releases/tags/{tag_name}"
     resp = requests.get(get_url, headers=_headers(token), timeout=30)
-    if resp.status_code == 200:
-        return resp.json()
 
-    create_url = f"{GITHUB_API}/repos/{HARHUB_REPO}/releases"
+    if resp.status_code == 200:
+        existing = resp.json()
+        if BOT_MARKER not in (existing.get("body") or ""):
+            raise RuntimeError(
+                f"Release tag '{tag_name}' already exists on {HARHUB_RELEASES_REPO} but was "
+                f"not created by Harhub's automation (missing bot marker). Refusing to touch it."
+            )
+        return existing
+
+    create_url = f"{GITHUB_API}/repos/{HARHUB_RELEASES_REPO}/releases"
     resp = requests.post(
         create_url,
         headers=_headers(token),
         json={
             "tag_name": tag_name,
             "name": release_name,
+            "body": f"{BOT_MARKER}\nAutomatically published and managed by Harhub. Do not edit manually.",
             "generate_release_notes": False,
         },
         timeout=30,
@@ -44,13 +55,19 @@ def ensure_harhub_release(token: str, tag_name: str, release_name: str) -> dict:
     return resp.json()
 
 
-def upload_release_asset(token: str, release: dict, local_path, file_name: str) -> str:
-    """Uploads a local file as a release asset. Idempotent — skips if an
-    asset with the same name already exists on this release.
-    """
+def upload_release_asset(token: str, release: dict, local_path, file_name: str, expected_sha256: str = "") -> str:
     existing = {a["name"]: a for a in release.get("assets", [])}
+
     if file_name in existing:
-        return existing[file_name]["browser_download_url"]
+        if expected_sha256:
+            remote_hash, _ = sha256_of_url(existing[file_name]["browser_download_url"], headers=_headers(token))
+            if remote_hash.lower() != expected_sha256.lower():
+                delete_url = f"{GITHUB_API}/repos/{HARHUB_RELEASES_REPO}/releases/assets/{existing[file_name]['id']}"
+                requests.delete(delete_url, headers=_headers(token), timeout=30)
+            else:
+                return existing[file_name]["browser_download_url"]
+        else:
+            return existing[file_name]["browser_download_url"]
 
     upload_url = release["upload_url"].split("{")[0]
     headers = {**_headers(token), "Content-Type": "application/octet-stream"}
@@ -67,16 +84,15 @@ def publish_to_harhub_release(
     version: str,
     assets: list[dict],
 ) -> dict[str, str]:
-    """assets: list of dicts each with 'file_name' and 'local_path' (a
-    Path to an already-downloaded/built file) — returns
-    {file_name: browser_download_url} from the Harhub repo's own Release.
-    """
     tag_name = f"{app_slug}-{version}"
     release = ensure_harhub_release(token, tag_name, f"{app_slug} {version}")
 
     urls = {}
     for asset in assets:
-        url = upload_release_asset(token, release, asset["local_path"], asset["file_name"])
+        url = upload_release_asset(
+            token, release, asset["local_path"], asset["file_name"],
+            expected_sha256=asset.get("sha256", ""),
+        )
         urls[asset["file_name"]] = url
 
     return urls
@@ -89,10 +105,6 @@ def download_then_upload_to_release(
     assets: list[dict],
     github_download_headers: dict,
 ) -> dict[str, str]:
-    """For assets that only exist as a remote source_url (not yet on
-    disk) — downloads each to a temp file, uploads it to the Harhub
-    repo's Release, then discards the temp file.
-    """
     tag_name = f"{app_slug}-{version}"
     release = ensure_harhub_release(token, tag_name, f"{app_slug} {version}")
 
@@ -108,7 +120,10 @@ def download_then_upload_to_release(
                     for chunk in resp.iter_content(chunk_size=1024 * 1024):
                         f.write(chunk)
 
-            url = upload_release_asset(token, release, local_path, file_name)
+            url = upload_release_asset(
+                token, release, local_path, file_name,
+                expected_sha256=asset.get("sha256", ""),
+            )
             urls[file_name] = url
 
     return urls

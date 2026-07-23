@@ -32,5 +32,5 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           TARGET_APP_SLUG: ${{ inputs.app_slug }}
-          HARHUB_REPO_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HARHUB_REPO_TOKEN: ${{ secrets.HARHUB_RELEASES_TOKEN }}
         run: python action/scripts/publish_from_release.py
