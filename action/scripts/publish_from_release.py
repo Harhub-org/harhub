@@ -12,8 +12,13 @@ from pathlib import Path
 import requests
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-if str(SCRIPT_DIR) not in sys.path:
-    sys.path.insert(0, str(SCRIPT_DIR))
+SCRIPT_DIR = Path(__file__).resolve().parent          # .../action/scripts
+REPO_ROOT = SCRIPT_DIR.parent.parent                   # repo root
+SCRIPTS_DIR = REPO_ROOT / "scripts"
+
+for path in (SCRIPT_DIR, SCRIPTS_DIR):
+    if str(path) not in sys.path:
+        sys.path.insert(0, str(path))
 
 from utils.hashing_stream import sha256_of_url  # noqa: E402
 from utils.platform_detect import detect_platform_and_arch  # noqa: E402

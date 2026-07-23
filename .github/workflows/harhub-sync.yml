@@ -1,4 +1,4 @@
-name: Harhub Publish
+name: Harhub Sync
 
 on:
   workflow_dispatch:
