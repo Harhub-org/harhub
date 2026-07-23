@@ -154,6 +154,7 @@ def main() -> None:
             token=harhub_token,
             app_slug=app_slug,
             version=version,
+            visibility=visibility,
             assets=prepared_assets,
             github_download_headers=github_headers(token),
         )
@@ -202,10 +203,11 @@ def main() -> None:
         supabase_url=env("SUPABASE_URL"),
         service_key=env("SUPABASE_SERVICE_KEY"),
         developer_id=developer["id"],
-        app_name=repo,
         app_slug=app_slug,
+        app_name=repo,
         version=version,
         source="manual",
+        visibility=visibility,
         asset_urls=asset_urls,
     )
 

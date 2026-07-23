@@ -176,6 +176,7 @@ def main() -> None:
             token=harhub_token,
             app_slug=app_slug,
             version=version,
+            visibility=visibility,
             assets=prepared_assets,
         )
 
@@ -218,6 +219,18 @@ def main() -> None:
             },
             conflict="release_id,file_name",
         )
+
+    notify_publish(
+        supabase_url=env("SUPABASE_URL"),
+        service_key=env("SUPABASE_SERVICE_KEY"),
+        developer_id=developer["id"],
+        app_slug=app_slug,
+        app_name=repo,
+        version=version,
+        source="build",
+        visibility=visibility,
+        asset_urls=asset_urls,
+    )
 
     print(f"Built ({build_system.name}) and published {target_url} @ {version} → branch '{branch}' ({len(prepared_assets)} asset(s)).")
 

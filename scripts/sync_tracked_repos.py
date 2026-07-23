@@ -184,6 +184,7 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
             token=harhub_token,
             app_slug=slug,
             version=version,
+            visibility=visibility,
             assets=prepared_assets,
             github_download_headers=github_headers(token),
         )
@@ -213,10 +214,11 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
         supabase_url=env("SUPABASE_URL"),
         service_key=env("SUPABASE_SERVICE_KEY"),
         developer_id=developer["id"],
-        app_name=repo,
         app_slug=slug,
+        app_name=repo,
         version=version,
         source="sync",
+        visibility=visibility,
         asset_urls=asset_urls,
     )
 

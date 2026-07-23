@@ -444,6 +444,46 @@
     border-radius: 8px;
   }
 
+  .app-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    background: var(--bg-panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+  }
+
+  .app-row .info { min-width: 0; flex: 1; }
+
+  .app-row .name {
+    font-size: 13.5px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .app-row .meta {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--text-faint);
+    margin-top: 2px;
+  }
+
+  .status-pill {
+    font-size: 11px;
+    font-family: var(--font-mono);
+    padding: 3px 8px;
+    border-radius: 20px;
+    flex-shrink: 0;
+  }
+
+  .status-pill.published { background: rgba(52,211,153,0.12); color: #6EE7B7; }
+  .status-pill.draft { background: rgba(156,163,175,0.12); color: #9CA3AF; }
+
   .token-box {
     font-family: var(--font-mono);
     font-size: 12px;
@@ -610,6 +650,14 @@
           <div class="verify-note" style="margin-top:16px">
             Signed in with email/password links you as <strong>unverified</strong> — your apps publish as drafts. Continue with GitHub instead to verify ownership of your username automatically.
           </div>
+            <div id="myAppsSection" style="margin-top:28px">
+              <div class="auth-head" style="margin-bottom:16px">
+                <h2 style="font-size:18px">Your apps</h2>
+              </div>
+              <div id="appsListContainer">
+                <p style="color:var(--text-faint); font-size:13px;">Loading…</p>
+              </div>
+            </div>
         </div>
 
         <div class="msg" id="dashMsg"></div>
@@ -781,6 +829,44 @@
     }
   }
 
+  async function loadMyApps() {
+    const container = document.getElementById('appsListContainer');
+    const { data: { session } } = await client.auth.getSession();
+    if (!session) return;
+
+    const { data: developer } = await client
+      .from('developers')
+      .select('id')
+      .eq('user_id', session.user.id)
+      .maybeSingle();
+
+    if (!developer) {
+      container.innerHTML = '<p style="color:var(--text-faint); font-size:13px;">Link a developer profile to see your apps here.</p>';
+      return;
+    }
+
+    const { data: apps } = await client
+      .from('apps')
+      .select('name, slug, status, visibility, download_count, updated_at')
+      .eq('developer_id', developer.id)
+      .order('updated_at', { ascending: false });
+
+    if (!apps || apps.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-faint); font-size:13px;">No apps published yet. Trigger a publish workflow to see them here.</p>';
+      return;
+    }
+
+    container.innerHTML = apps.map(app => `
+      <div class="app-row">
+        <div class="info">
+          <div class="name">${app.name}</div>
+          <div class="meta">${app.slug} · ${app.visibility} · ↓ ${app.download_count}</div>
+        </div>
+        <span class="status-pill ${app.status}">${app.status}</span>
+      </div>
+    `).join('');
+  }
+
   async function onAuthed() {
     const { data: { session } } = await client.auth.getSession();
     if (!session) return;
@@ -800,6 +886,27 @@
     }
 
     refreshDeveloperStatus();
+  }
+
+  async function onAuthed() {
+    const { data: { session } } = await client.auth.getSession();
+    if (!session) return;
+
+    document.getElementById('authPanels').classList.add('hide');
+    document.getElementById('dashboard').classList.add('show');
+    document.getElementById('sessEmail').textContent = session.user.email || session.user.user_metadata?.user_name || 'signed in';
+    document.getElementById('avatarDot').textContent = (session.user.email || 'U')[0].toUpperCase();
+
+    const ghIdentity = session.user.identities?.find(i => i.provider === 'github');
+    if (ghIdentity) {
+      const ghUsername = ghIdentity.identity_data?.user_name;
+      if (ghUsername) {
+        document.getElementById('ghUsername').value = ghUsername;
+      }
+    }
+
+    refreshDeveloperStatus();
+    loadMyApps();
   }
 
   // Restore session on page load (handles GitHub OAuth redirect too)
