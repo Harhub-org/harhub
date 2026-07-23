@@ -21,6 +21,7 @@ from urllib.parse import urlparse
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+from utils.notify import notify_publish
 from utils.harhub_release import publish_to_harhub_release
 from utils.tracked_repos import find_tracked_repo
 from utils.branch_mirror import mirror_local_assets_to_branch

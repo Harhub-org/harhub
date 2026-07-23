@@ -1,0 +1,8 @@
+[lint]
+select = ["E", "F"]  # pyflakes + pycodestyle errors only — catches real bugs
+ignore = [
+    "E501",  # line too long — not worth blocking CI over
+]
+
+[lint.per-file-ignores]
+"action/scripts/**" = ["F"]  # legacy composite-action scripts, superseded by scripts/ — kept for reference, not linted strictly
