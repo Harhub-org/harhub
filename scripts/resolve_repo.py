@@ -1,9 +1,6 @@
 """Resolves a Harhub app_slug into its config/tracked-repos.toml entry
-and writes repo/pinned_version to $GITHUB_OUTPUT. Kept as a standalone
-script (not inline Python inside a workflow run: block) because mixing
-Python string interpolation with GitHub Actions ${{ }} expressions
-inside YAML is fragile and can silently break the whole job's YAML
-parsing.
+and writes repo (owner/repo format, for actions/checkout) and
+pinned_version to $GITHUB_OUTPUT.
 
 Usage: python scripts/resolve_repo.py <app_slug>
 """
@@ -13,7 +10,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from utils.tracked_repos import find_tracked_repo  # noqa: E402
+from utils.tracked_repos import find_tracked_repo
 
 
 def main() -> None:
@@ -36,11 +33,14 @@ def main() -> None:
         print("::error::GITHUB_OUTPUT is not set — this must run inside a GitHub Actions step", file=sys.stderr)
         sys.exit(1)
 
+    # actions/checkout expects "owner/repo", not a full URL.
+    owner_repo = f"{entry['owner']}/{entry['repo']}"
+
     with open(output_path, "a", encoding="utf-8") as f:
-        f.write(f"repo={entry['url']}\n")
+        f.write(f"repo={owner_repo}\n")
         f.write(f"pinned_version={entry.get('version', '')}\n")
 
-    print(f"Resolved {app_slug} -> {entry['url']} (pinned_version={entry.get('version') or 'latest'})")
+    print(f"Resolved {app_slug} -> {owner_repo} (pinned_version={entry.get('version') or 'latest'})")
 
 
 if __name__ == "__main__":
