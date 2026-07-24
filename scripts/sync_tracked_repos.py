@@ -201,6 +201,7 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
             visibility=visibility,
             assets=prepared_assets,
             github_download_headers=github_headers(token),
+            release_display_name=f"{repo} — {version}",
         )
 
     db.clear_latest_flag(app_row["id"])

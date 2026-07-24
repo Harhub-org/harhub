@@ -167,6 +167,7 @@ def main() -> None:
             visibility=visibility,
             assets=prepared_assets,
             github_download_headers=github_headers(token),
+            release_display_name=f"{repo} — {version}",
         )
 
     app_status = "published" if developer.get("verified") else "draft"

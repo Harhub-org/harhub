@@ -138,7 +138,16 @@ def publish_to_harhub_release(
     tag_name = f"{app_slug}-{version}"
     name = release_display_name or f"{app_slug} {version}"
     release = ensure_harhub_release(token, tag_name, name, visibility)
-    ...
+
+    urls = {}
+    for asset in assets:
+        url = upload_release_asset(
+            token, release, asset["local_path"], asset["file_name"],
+            expected_sha256=asset.get("sha256", ""),
+        )
+        urls[asset["file_name"]] = url
+
+    return urls
 
 
 def download_then_upload_to_release(
@@ -148,9 +157,11 @@ def download_then_upload_to_release(
     visibility: str,
     assets: list[dict],
     github_download_headers: dict,
+    release_display_name: str | None = None,
 ) -> dict[str, str]:
     tag_name = f"{app_slug}-{version}"
-    release = ensure_harhub_release(token, tag_name, f"{app_slug} {version}", visibility)
+    name = release_display_name or f"{app_slug} {version}"
+    release = ensure_harhub_release(token, tag_name, name, visibility)
 
     urls = {}
     with tempfile.TemporaryDirectory() as tmp_dir:
@@ -158,11 +169,10 @@ def download_then_upload_to_release(
             file_name = asset["file_name"]
             local_path = Path(tmp_dir) / file_name
 
-            with github_request(asset["source_url"], headers=github_download_headers, stream=True, timeout=300) as resp:
+            with requests.get(asset["source_url"], headers=github_download_headers, stream=True, timeout=300) as resp:
                 resp.raise_for_status()
                 with open(local_path, "wb") as f:
-                    for chunk in resp.iter_content(chunk_size=1024 * 1024):
-                        f.write(chunk)
+                    f.writelines(resp.iter_content(chunk_size=1024 * 1024))
 
             url = upload_release_asset(
                 token, release, local_path, file_name,

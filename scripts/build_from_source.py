@@ -186,14 +186,16 @@ def main() -> None:
 
     harhub_token = env("HARHUB_REPO_TOKEN")
     if harhub_token:
-        display_version = f"build {version[:7]}" if pinned_version_is_sha else version
+        is_semver_tag = pinned_version.strip() != ""  # a pinned tag from config was used, not a raw commit SHA
+        display_name = f"{repo} — {version}" if is_semver_tag else f"{repo} — build {version[:7]}"
+
         publish_to_harhub_release(
             token=harhub_token,
             app_slug=app_slug,
             version=version,
             visibility=visibility,
-            release_display_name=f"{repo} — {display_version}",
             assets=prepared_assets,
+            release_display_name=display_name,
         )
 
     app_status = "published" if developer.get("verified") else "draft"
