@@ -84,6 +84,16 @@ class SupabaseAdmin:
         rows = resp.json()
         return rows[0] if rows else None
 
+    def clear_latest_flag(self, app_id: str) -> None:
+        resp = requests.patch(
+            f"{self.url}/rest/v1/releases",
+            headers=self.headers,
+            params={"app_id": f"eq.{app_id}", "is_latest": "eq.true"},
+            json={"is_latest": False},
+            timeout=30,
+        )
+        resp.raise_for_status()
+
 
 def main() -> None:
     app_slug = env("TARGET_APP_SLUG")
@@ -177,6 +187,8 @@ def main() -> None:
         },
         conflict="repo_owner,repo_name",
     )
+
+    db.clear_latest_flag(app_row["id"])
 
     release_row = db.upsert(
         "releases",

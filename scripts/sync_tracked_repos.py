@@ -98,6 +98,16 @@ class SupabaseAdmin:
         rows = resp.json()
         return rows[0] if rows else None
 
+    def clear_latest_flag(self, app_id: str) -> None:
+        resp = requests.patch(
+            f"{self.url}/rest/v1/releases",
+            headers=self.headers,
+            params={"app_id": f"eq.{app_id}", "is_latest": "eq.true"},
+            json={"is_latest": False},
+            timeout=30,
+        )
+        resp.raise_for_status()
+
 
 def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: Path, harhub_token: str) -> None:
     owner = entry["owner"]
@@ -188,6 +198,8 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
             assets=prepared_assets,
             github_download_headers=github_headers(token),
         )
+
+    db.clear_latest_flag(app_row["id"])
 
     release_row = db.upsert(
         "releases",
