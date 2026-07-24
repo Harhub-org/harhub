@@ -23,6 +23,7 @@ import requests
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from utils.notify import notify_publish
 from utils.harhub_release import publish_to_harhub_release
+from utils.asset_validation import validate_assets
 from utils.tracked_repos import find_tracked_repo
 from utils.branch_mirror import mirror_local_assets_to_branch
 from utils.build_config import load_command_override
@@ -170,6 +171,8 @@ def main() -> None:
         })
         print(f"  built: {binary_path.name} ({platform}/{arch}, {size_bytes} bytes, sha256 {sha256[:12]}...)")
 
+    validate_assets(prepared_assets)
+
     harhub_repo_dir = Path(env("GITHUB_WORKSPACE", ".")).resolve() / "harhub"
     if not harhub_repo_dir.exists():
         harhub_repo_dir = Path(".").resolve()
@@ -183,11 +186,13 @@ def main() -> None:
 
     harhub_token = env("HARHUB_REPO_TOKEN")
     if harhub_token:
+        display_version = f"build {version[:7]}" if pinned_version_is_sha else version
         publish_to_harhub_release(
             token=harhub_token,
             app_slug=app_slug,
             version=version,
             visibility=visibility,
+            release_display_name=f"{repo} — {display_version}",
             assets=prepared_assets,
         )
 

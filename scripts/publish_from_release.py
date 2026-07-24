@@ -13,6 +13,9 @@ from urllib.parse import urlparse
 import requests
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from utils.http_retry import github_request
+from utils.asset_validation import validate_assets
 from utils.tracked_repos import find_tracked_repo
 from utils.hashing_stream import sha256_of_url
 from utils.platform_detect import detect_platform_and_arch
@@ -41,9 +44,11 @@ def github_headers(token: str) -> dict:
     return headers
 
 
-def fetch_latest_release(owner: str, repo: str, token: str) -> dict:
+def fetch_latest_release(owner: str, repo: str, token: str) -> dict | None:
     url = f"{GITHUB_API}/repos/{owner}/{repo}/releases/latest"
-    resp = requests.get(url, headers=github_headers(token), timeout=30)
+    resp = github_request("GET", url, headers=github_headers(token))
+    if resp.status_code == 404:
+        return None
     resp.raise_for_status()
     return resp.json()
 
@@ -127,6 +132,8 @@ def main() -> None:
             "size_bytes": size_bytes,
             "sha256": sha256,
         })
+
+    validate_assets(prepared_assets)
 
     harhub_repo_dir = Path(".").resolve()
     asset_urls = mirror_release_to_branch(

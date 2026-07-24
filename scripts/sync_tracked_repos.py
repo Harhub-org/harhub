@@ -20,6 +20,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
+from utils.http_retry import github_request # noqa: E402
+from utils.asset_validation import validate_assets # noqa: E402
 from utils.tracked_repos import load_all_tracked_repos  # noqa: E402
 from utils.hashing_stream import sha256_of_url  # noqa: E402
 from utils.platform_detect import detect_platform_and_arch  # noqa: E402
@@ -53,7 +55,7 @@ def github_headers(token: str) -> dict:
 
 def fetch_latest_release(owner: str, repo: str, token: str) -> dict | None:
     url = f"{GITHUB_API}/repos/{owner}/{repo}/releases/latest"
-    resp = requests.get(url, headers=github_headers(token), timeout=30)
+    resp = github_request("GET", url, headers=github_headers(token))
     if resp.status_code == 404:
         return None
     resp.raise_for_status()
@@ -180,6 +182,8 @@ def sync_one_repo(entry: dict, token: str, db: SupabaseAdmin, harhub_repo_dir: P
             "size_bytes": size_bytes,
             "sha256": sha256,
         })
+
+    validate_assets(prepared_assets)
 
     asset_urls = mirror_release_to_branch(
         harhub_repo_dir=harhub_repo_dir,

@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harhub — Browse Apps</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0B0812; --bg-panel: #14101F; --bg-panel-2: #1A1528;
+    --border: #2A2340; --text: #F3F1FA; --text-dim: #9C93B8; --text-faint: #6B6389;
+    --purple: #8B5CF6; --purple-bright: #A78BFA; --purple-deep: #6D28D9;
+    --font-display: 'Space Grotesk', sans-serif;
+    --font-body: 'Inter', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { color-scheme: dark; }
+  body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; }
+
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 20px 24px; border-bottom: 1px solid var(--border);
+  }
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand svg { width: 28px; height: 28px; }
+  .brand span { font-family: var(--font-display); font-weight: 600; font-size: 18px; }
+  header a { color: var(--purple-bright); text-decoration: none; font-size: 13.5px; font-weight: 500; }
+
+  main { max-width: 880px; margin: 0 auto; padding: 40px 20px 80px; }
+
+  .search-bar {
+    width: 100%; background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: 10px; padding: 13px 16px; color: var(--text);
+    font-family: var(--font-body); font-size: 14.5px; outline: none; margin-bottom: 28px;
+  }
+  .search-bar:focus { border-color: var(--purple); }
+
+  .app-card {
+    display: flex; gap: 14px; background: var(--bg-panel); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px; margin-bottom: 12px; transition: border-color 0.15s;
+  }
+  .app-card:hover { border-color: var(--purple); }
+
+  .app-icon {
+    width: 48px; height: 48px; border-radius: 10px; flex-shrink: 0;
+    background: linear-gradient(135deg, var(--purple-bright), var(--purple-deep));
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-weight: 700; font-size: 18px; color: #fff;
+  }
+  .app-info { flex: 1; min-width: 0; }
+  .app-name { font-size: 15.5px; font-weight: 600; }
+  .app-tagline { font-size: 13px; color: var(--text-dim); margin-top: 2px; }
+  .app-meta {
+    font-family: var(--font-mono); font-size: 11.5px; color: var(--text-faint); margin-top: 8px;
+    display: flex; gap: 12px; flex-wrap: wrap;
+  }
+  .badge {
+    display: inline-block; font-size: 10.5px; padding: 2px 8px; border-radius: 20px;
+    background: rgba(139,92,246,0.14); color: var(--purple-bright); font-family: var(--font-mono);
+  }
+
+  .empty-state { text-align: center; color: var(--text-faint); font-size: 14px; padding: 60px 0; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+      <defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stop-color="#8B5CF6"/><stop offset="100%" stop-color="#6D28D9"/>
+      </linearGradient></defs>
+      <rect width="512" height="512" rx="112" fill="url(#g)"/>
+      <path d="M 160 140 L 160 372 Q 160 388 176 388 L 216 388" fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 352 140 L 352 372 Q 352 388 336 388 L 296 388" fill="none" stroke="#FFFFFF" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M 256 168 L 256 300" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round"/>
+      <path d="M 200 248 L 256 306 L 312 248" fill="none" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="196" y="330" width="120" height="20" rx="10" fill="#FFFFFF"/>
+    </svg>
+    <span>Harhub</span>
+  </div>
+  <a href="./index.html" id="headerAuthLink">Sign in</a>
+</header>
+
+<main>
+  <input type="text" class="search-bar" id="searchInput" placeholder="Search apps...">
+  <div id="appsList">
+    <p class="empty-state">Loading apps…</p>
+  </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  const SUPABASE_URL = "https://ouaxmljxepgvgwgxrcil.supabase.co";
+  const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";
+
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  let allApps = [];
+
+  function renderApps(apps) {
+    const container = document.getElementById('appsList');
+    if (apps.length === 0) {
+      container.innerHTML = '<p class="empty-state">No apps found.</p>';
+      return;
+    }
+    container.innerHTML = apps.map(app => `
+      <div class="app-card">
+        <div class="app-icon">${(app.name || '?')[0].toUpperCase()}</div>
+        <div class="app-info">
+          <div class="app-name">${app.name}</div>
+          ${app.tagline ? `<div class="app-tagline">${app.tagline}</div>` : ''}
+          <div class="app-meta">
+            <span class="badge">${app.visibility}</span>
+            <span>↓ ${app.download_count || 0}</span>
+            <span>${app.repo_owner}/${app.repo_name}</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function loadApps() {
+    const { data, error } = await client
+      .from('apps')
+      .select('name, slug, tagline, visibility, download_count, repo_owner, repo_name')
+      .eq('status', 'published')
+      .order('download_count', { ascending: false });
+
+    if (error) {
+      document.getElementById('appsList').innerHTML =
+        `<p class="empty-state">Failed to load apps: ${error.message}</p>`;
+      return;
+    }
+
+    allApps = data || [];
+    renderApps(allApps);
+  }
+
+  async function updateHeaderAuthState() {
+    const { data: { session } } = await client.auth.getSession();
+    const link = document.getElementById('headerAuthLink');
+    if (session) {
+      const label = session.user.email || session.user.user_metadata?.user_name || 'Account';
+      link.textContent = label + ' →';
+      link.href = './index.html';
+    } else {
+      link.textContent = 'Sign in';
+      link.href = './index.html';
+    }
+  }
+
+  updateHeaderAuthState();
+
+  document.getElementById('searchInput').addEventListener('input', (e) => {
+    const q = e.target.value.toLowerCase();
+    renderApps(allApps.filter(a =>
+      a.name.toLowerCase().includes(q) || (a.tagline || '').toLowerCase().includes(q)
+    ));
+  });
+
+  loadApps();
+</script>
+
+</body>
+</html>

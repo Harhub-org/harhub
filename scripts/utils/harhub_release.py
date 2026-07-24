@@ -32,18 +32,18 @@ def _headers(token: str) -> dict:
 
 def _branch_exists(token: str, branch: str) -> bool:
     url = f"{GITHUB_API}/repos/{HARHUB_RELEASES_REPO}/branches/{branch}"
-    resp = requests.get(url, headers=_headers(token), timeout=30)
+    resp = github_request(url, headers=_headers(token), timeout=30)
     return resp.status_code == 200
 
 
 def _get_default_branch_sha(token: str) -> str:
     repo_url = f"{GITHUB_API}/repos/{HARHUB_RELEASES_REPO}"
-    resp = requests.get(repo_url, headers=_headers(token), timeout=30)
+    resp = github_request(repo_url, headers=_headers(token), timeout=30)
     resp.raise_for_status()
     default_branch = resp.json()["default_branch"]
 
     ref_url = f"{GITHUB_API}/repos/{HARHUB_RELEASES_REPO}/git/ref/heads/{default_branch}"
-    resp = requests.get(ref_url, headers=_headers(token), timeout=30)
+    resp = github_request(ref_url, headers=_headers(token), timeout=30)
     resp.raise_for_status()
     return resp.json()["object"]["sha"]
 
@@ -73,10 +73,6 @@ def ensure_visibility_branch(token: str, visibility: str) -> str:
 
 
 def ensure_harhub_release(token: str, tag_name: str, release_name: str, visibility: str) -> dict:
-    """Gets or creates a GitHub Release on harhub-releases, tagged
-    '{app_slug}-{version}', targeting the 'public' or 'proprietary'
-    branch based on the app's visibility.
-    """
     target_branch = ensure_visibility_branch(token, visibility)
 
     get_url = f"{GITHUB_API}/repos/{HARHUB_RELEASES_REPO}/releases/tags/{tag_name}"
@@ -137,19 +133,12 @@ def publish_to_harhub_release(
     version: str,
     visibility: str,
     assets: list[dict],
+    release_display_name: str | None = None,
 ) -> dict[str, str]:
     tag_name = f"{app_slug}-{version}"
-    release = ensure_harhub_release(token, tag_name, f"{app_slug} {version}", visibility)
-
-    urls = {}
-    for asset in assets:
-        url = upload_release_asset(
-            token, release, asset["local_path"], asset["file_name"],
-            expected_sha256=asset.get("sha256", ""),
-        )
-        urls[asset["file_name"]] = url
-
-    return urls
+    name = release_display_name or f"{app_slug} {version}"
+    release = ensure_harhub_release(token, tag_name, name, visibility)
+    ...
 
 
 def download_then_upload_to_release(
@@ -169,7 +158,7 @@ def download_then_upload_to_release(
             file_name = asset["file_name"]
             local_path = Path(tmp_dir) / file_name
 
-            with requests.get(asset["source_url"], headers=github_download_headers, stream=True, timeout=300) as resp:
+            with github_request(asset["source_url"], headers=github_download_headers, stream=True, timeout=300) as resp:
                 resp.raise_for_status()
                 with open(local_path, "wb") as f:
                     for chunk in resp.iter_content(chunk_size=1024 * 1024):
